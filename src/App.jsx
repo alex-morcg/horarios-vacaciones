@@ -365,6 +365,36 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
   const monthNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   const dayNames = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
+  // Local holidays - use the same dates from defaultHolidays for accurate detection
+  // These are month-day patterns that identify local/national holidays vs admin-added closures
+  const localHolidayMonthDays = new Set([
+    '01-01', // Año Nuevo
+    '01-06', // Reyes
+    '04-03', // Viernes Santo 2026
+    '04-06', // Lunes de Pascua 2026
+    '03-26', // Viernes Santo 2027
+    '03-29', // Lunes de Pascua 2027
+    '05-01', // Fiesta del Trabajo
+    '06-24', // San Juan
+    '08-15', // Asunción
+    '09-11', // Diada de Cataluña
+    '09-24', // La Mercè
+    '10-12', // Fiesta Nacional
+    '11-01', // Todos los Santos
+    '12-06', // Constitución
+    '12-08', // Inmaculada
+    '12-25', // Navidad
+    '12-26', // San Esteban
+  ]);
+
+  // Format date as YYYY-MM-DD without timezone issues
+  const getDateStr = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   // Generate all days of the year
   const getAllDaysOfYear = () => {
     const days = [];
@@ -392,9 +422,14 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
 
   const weeks = getAllDaysOfYear();
 
-  const getDateStr = (date) => date.toISOString().split('T')[0];
-
-  const getHolidayInfo = (dateStr) => holidays.find(h => h.date === dateStr);
+  const getHolidayInfo = (dateStr) => {
+    const holiday = holidays.find(h => h.date === dateStr);
+    if (!holiday) return null;
+    // Check if it's a local holiday by comparing month-day
+    const monthDay = dateStr.slice(5); // Get MM-DD part
+    const isLocal = holiday.isLocal === true || localHolidayMonthDays.has(monthDay);
+    return { ...holiday, isLocal };
+  };
 
   const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
 
@@ -423,6 +458,11 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
   const today = new Date();
   const todayStr = getDateStr(today);
 
+  // Check if week contains first day of a month
+  const getMonthStart = (week) => {
+    return week.find(d => d.getDate() === 1 && d.getFullYear() === year);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -434,26 +474,28 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
       <div className="overflow-x-auto">
         <div className="min-w-[900px]">
           {/* Header with day names */}
-          <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-gray-200 mb-1">
-            <div className="bg-white p-1 text-xs font-semibold text-gray-500"></div>
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b-2 border-gray-300">
+            <div className="bg-gray-50 p-2 text-xs font-semibold text-gray-500"></div>
             {dayNames.map(d => (
-              <div key={d} className="bg-white p-1 text-xs font-semibold text-gray-500 text-center">{d}</div>
+              <div key={d} className="bg-gray-50 p-2 text-xs font-semibold text-gray-500 text-center border-l border-gray-200">{d}</div>
             ))}
           </div>
 
           {/* Calendar grid */}
-          <div className="space-y-px">
+          <div>
             {weeks.map((week, weekIdx) => {
-              // Check if this is the first week of a new month
-              const firstDayOfWeek = week[0];
-              const lastDayOfWeek = week[6];
-              const showMonthLabel = week.some((d, i) => d.getDate() === 1 && d.getFullYear() === year);
-              const monthLabelDay = week.find(d => d.getDate() === 1 && d.getFullYear() === year);
+              const monthLabelDay = getMonthStart(week);
+              const isMonthStart = !!monthLabelDay;
+              const nextWeek = weeks[weekIdx + 1];
+              const nextWeekHasMonthStart = nextWeek && getMonthStart(nextWeek);
 
               return (
-                <div key={weekIdx} className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-gray-200">
+                <div
+                  key={weekIdx}
+                  className={`grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-300 ${isMonthStart ? 'border-t-4 border-t-gray-500' : ''}`}
+                >
                   {/* Month label column */}
-                  <div className="bg-white p-1 text-xs font-bold text-gray-700 flex items-center justify-center">
+                  <div className={`bg-gray-50 p-1 text-xs font-bold text-gray-700 flex items-center justify-center border-r border-gray-200 ${isMonthStart ? 'bg-gray-100' : ''}`}>
                     {monthLabelDay && monthNames[monthLabelDay.getMonth()]}
                   </div>
 
@@ -485,7 +527,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                     return (
                       <div
                         key={dayIdx}
-                        className={`${bgClass} p-1 min-h-[32px] relative cursor-pointer hover:ring-2 hover:ring-indigo-300 ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                        className={`${bgClass} p-1 min-h-[36px] relative cursor-pointer hover:ring-2 hover:ring-indigo-300 border-l border-gray-200 ${isToday ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
                         onMouseEnter={() => userCount > 0 && setHoveredDay(dateStr)}
                         onMouseLeave={() => setHoveredDay(null)}
                       >
@@ -534,8 +576,8 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-4 text-xs bg-gray-50 p-3 rounded-lg">
         <span className="font-medium">Leyenda:</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 rounded"></span> Festivo local</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-100 rounded"></span> Día de cierre</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 border border-red-300 rounded"></span> Festivo local</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></span> Día de cierre</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 bg-indigo-500 text-white rounded-full text-[10px] flex items-center justify-center">3</span> Personas de vacaciones</span>
       </div>
     </div>
