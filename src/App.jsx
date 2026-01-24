@@ -164,7 +164,7 @@ const VacationManager = () => {
               <TabButton icon={Settings} label="Festivos" active={activeTab === 'holidays'} onClick={() => setActiveTab('holidays')} />
               <TabButton icon={Users} label="Departamentos" active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} />
             </>}
-            {!currentUser.isAdmin && <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />}
+            <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />
           </div>
           <div className="p-6">
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
@@ -172,7 +172,7 @@ const VacationManager = () => {
             {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
-            {activeTab === 'myRequests' && !currentUser.isAdmin && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} />}
+            {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} />}
           </div>
         </div>
       </div>
@@ -206,17 +206,21 @@ const getDeptColorInfo = (deptName, departments) => {
 
 const RequestBadge = ({ req, user, departments, getUserDepartments }) => {
   const userDepts = getUserDepartments(user);
-  const statusEmoji = req.status === 'approved' ? '✅' : req.status === 'pending' ? '⏳' : '❌';
+  const getEmoji = () => {
+    if (req.type === 'other') return '⚠️';
+    return req.status === 'approved' ? '✅' : req.status === 'pending' ? '⏳' : '❌';
+  };
+  const emoji = getEmoji();
   if (userDepts.length <= 1) {
     const color = userDepts.length === 1 ? getDeptColorInfo(userDepts[0], departments) : { bg: 'bg-gray-200', text: 'text-gray-900' };
-    return <div className={`text-xs px-1 py-0.5 rounded truncate flex items-center gap-1 ${color.bg} ${color.text}`} title={`${user?.name} ${user?.lastName}`}><span>{statusEmoji}</span><span className="truncate">{user?.name}</span></div>;
+    return <div className={`text-xs px-1 py-0.5 rounded truncate flex items-center gap-1 ${color.bg} ${color.text}`} title={`${user?.name} ${user?.lastName}${req.type === 'other' ? ' (Día especial)' : ''}`}><span>{emoji}</span><span className="truncate">{user?.name}</span></div>;
   }
   const colors = userDepts.slice(0, 3).map(d => getDeptColorInfo(d, departments));
   const w = 100 / colors.length;
   return (
-    <div className="text-xs rounded overflow-hidden relative" style={{ minHeight: '22px' }} title={`${user?.name} - ${userDepts.join(', ')}`}>
+    <div className="text-xs rounded overflow-hidden relative" style={{ minHeight: '22px' }} title={`${user?.name} - ${userDepts.join(', ')}${req.type === 'other' ? ' (Día especial)' : ''}`}>
       <div className="absolute inset-0 flex">{colors.map((c, i) => <div key={i} className={c.bg} style={{ width: `${w}%`, borderRight: i < colors.length - 1 ? '1px solid #666' : 'none' }} />)}</div>
-      <div className="relative px-1 py-0.5 flex items-center gap-1 text-gray-900"><span>{statusEmoji}</span><span className="truncate">{user?.name}</span></div>
+      <div className="relative px-1 py-0.5 flex items-center gap-1 text-gray-900"><span>{emoji}</span><span className="truncate">{user?.name}</span></div>
     </div>
   );
 };
@@ -250,7 +254,7 @@ const CalendarView = ({ view, setView, currentDate, setCurrentDate, requests, us
           </select>
         </div>
       </div>
-      <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg"><span className="font-medium">Leyenda:</span><span>✅ Aprobado</span><span>⏳ Pendiente</span><span>❌ Denegado</span></div>
+      <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg"><span className="font-medium">Leyenda:</span><span>✅ Aprobado</span><span>⏳ Pendiente</span><span>❌ Denegado</span><span>⚠️ Día especial</span></div>
       {view === 'month' && <MonthCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
       {view === 'week' && <WeekCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
       {view === 'year' && <YearCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} />}
@@ -619,45 +623,84 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
   );
 };
 
-const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculateUserDays, isWeekend, isHoliday, getBusinessDays, showNotification }) => {
+const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculateUserDays, isWeekend, isHoliday, getBusinessDays, showNotification, users = [] }) => {
   const [showForm, setShowForm] = useState(false);
   const [requestType, setRequestType] = useState('range');
+  const [selectedUserCode, setSelectedUserCode] = useState(currentUser.code);
   const [formData, setFormData] = useState({ type: 'vacation', startDate: '', endDate: '', dates: [], newDate: '', comments: '' });
-  const d = calculateUserDays(currentUser.code);
-  const myReqs = requests.filter(r => r.userCode === currentUser.code).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const targetUserCode = currentUser.isAdmin ? selectedUserCode : currentUser.code;
+  const d = calculateUserDays(targetUserCode);
+  const myReqs = requests.filter(r => r.userCode === targetUserCode).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const statusEmojis = { pending: '⏳', approved: '✅', denied: '❌' };
+  const getTypeEmoji = (req) => req.type === 'other' ? '⚠️' : statusEmojis[req.status];
 
   const handleSubmit = async () => {
     if (requestType === 'range' && (!formData.startDate || !formData.endDate)) { showNotification('error', 'Selecciona fechas'); return; }
     if (requestType === 'individual' && formData.dates.length === 0) { showNotification('error', 'Añade fechas'); return; }
-    await addRequest({
-      userCode: currentUser.code, type: formData.type, isRange: requestType === 'range', status: 'pending', comments: formData.comments, createdAt: new Date().toISOString(),
-      startDate: requestType === 'range' ? formData.startDate : null, endDate: requestType === 'range' ? formData.endDate : null, dates: requestType === 'individual' ? formData.dates : []
-    });
-    setShowForm(false); setFormData({ type: 'vacation', startDate: '', endDate: '', dates: [], newDate: '', comments: '' });
+    if (currentUser.isAdmin && !selectedUserCode) { showNotification('error', 'Selecciona un usuario'); return; }
+
+    const requestData = {
+      userCode: targetUserCode,
+      type: currentUser.isAdmin ? formData.type : 'vacation',
+      isRange: requestType === 'range',
+      status: currentUser.isAdmin && formData.type === 'other' ? 'approved' : 'pending',
+      comments: formData.comments,
+      createdAt: new Date().toISOString(),
+      startDate: requestType === 'range' ? formData.startDate : null,
+      endDate: requestType === 'range' ? formData.endDate : null,
+      dates: requestType === 'individual' ? formData.dates : [],
+      createdByAdmin: currentUser.isAdmin ? currentUser.code : null
+    };
+
+    if (currentUser.isAdmin && formData.type === 'other') {
+      requestData.approvedBy = currentUser.code;
+      requestData.approvedByName = currentUser.name;
+      requestData.approvedAt = new Date().toISOString();
+    }
+
+    await addRequest(requestData);
+    setShowForm(false);
+    setFormData({ type: 'vacation', startDate: '', endDate: '', dates: [], newDate: '', comments: '' });
   };
+
+  const selectedUser = users.find(u => u.code === selectedUserCode);
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h3 className="text-xl font-semibold mb-4">Mi Saldo</h3>
-        <div className="grid grid-cols-5 gap-4">
-          <div><p className="text-sm text-gray-600">Totales</p><p className="text-xl font-bold text-blue-600">{d.total}</p></div>
-          <div><p className="text-sm text-gray-600">Sobrantes</p><p className="text-xl font-bold text-purple-600">{d.carryOver}</p></div>
-          <div><p className="text-sm text-gray-600">Usados</p><p className="text-xl font-bold text-red-600">{d.used}</p></div>
-          <div><p className="text-sm text-gray-600">En espera</p><p className="text-xl font-bold text-orange-600">{d.waiting}</p></div>
-          <div><p className="text-sm text-gray-600">Disponibles</p><p className="text-xl font-bold text-green-600">{d.available}</p></div>
+      {currentUser.isAdmin && (
+        <div className="bg-indigo-50 p-4 rounded-lg">
+          <label className="block text-sm font-medium mb-2">Seleccionar usuario</label>
+          <select value={selectedUserCode} onChange={(e) => setSelectedUserCode(e.target.value)} className="w-full px-3 py-2 border rounded">
+            <option value={currentUser.code}>{currentUser.name} {currentUser.lastName} (Yo)</option>
+            {users.map(u => <option key={u.code} value={u.code}>{u.name} {u.lastName}</option>)}
+          </select>
         </div>
-      </div>
+      )}
+      {selectedUserCode !== 'ADMIN' && (
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-xl font-semibold mb-4">{currentUser.isAdmin && selectedUserCode !== currentUser.code ? `Saldo de ${selectedUser?.name || 'Usuario'}` : 'Mi Saldo'}</h3>
+          <div className="grid grid-cols-5 gap-4">
+            <div><p className="text-sm text-gray-600">Totales</p><p className="text-xl font-bold text-blue-600">{d.total}</p></div>
+            <div><p className="text-sm text-gray-600">Sobrantes</p><p className="text-xl font-bold text-purple-600">{d.carryOver}</p></div>
+            <div><p className="text-sm text-gray-600">Usados</p><p className="text-xl font-bold text-red-600">{d.used}</p></div>
+            <div><p className="text-sm text-gray-600">En espera</p><p className="text-xl font-bold text-orange-600">{d.waiting}</p></div>
+            <div><p className="text-sm text-gray-600">Disponibles</p><p className="text-xl font-bold text-green-600">{d.available}</p></div>
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Mis Solicitudes</h2>
+        <h2 className="text-2xl font-bold">{currentUser.isAdmin && selectedUserCode !== currentUser.code ? `Solicitudes de ${selectedUser?.name || 'Usuario'}` : 'Mis Solicitudes'}</h2>
         <button onClick={() => setShowForm(true)} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nueva</span></button>
       </div>
       {showForm && (
         <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-          <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="w-full px-3 py-2 border rounded">
-            <option value="vacation">Vacaciones</option><option value="other">Otros</option>
-          </select>
+          {currentUser.isAdmin && (
+            <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="w-full px-3 py-2 border rounded">
+              <option value="vacation">Vacaciones</option>
+              <option value="other">Otros (Días especiales)</option>
+            </select>
+          )}
           <div className="flex space-x-4">
             <label className="flex items-center"><input type="radio" value="range" checked={requestType === 'range'} onChange={(e) => setRequestType(e.target.value)} className="mr-2" />Rango</label>
             <label className="flex items-center"><input type="radio" value="individual" checked={requestType === 'individual'} onChange={(e) => setRequestType(e.target.value)} className="mr-2" />Días sueltos</label>
@@ -677,6 +720,9 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
             </div>
           )}
           <textarea value={formData.comments} onChange={(e) => setFormData({ ...formData, comments: e.target.value })} className="w-full px-3 py-2 border rounded" rows="2" placeholder="Comentarios" />
+          {currentUser.isAdmin && formData.type === 'other' && (
+            <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">⚠️ Los días de tipo "Otros" se aprueban automáticamente y no restan del saldo de vacaciones.</div>
+          )}
           <div className="flex space-x-2">
             <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">Enviar</button>
             <button onClick={() => setShowForm(false)} className="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
@@ -685,10 +731,15 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
       )}
       <div className="space-y-3">
         {myReqs.map(req => (
-          <div key={req.id} className="border rounded-lg p-4">
+          <div key={req.id} className={`border rounded-lg p-4 ${req.type === 'other' ? 'bg-amber-50' : ''}`}>
             <div className="flex justify-between items-start">
               <div>
-                <div className="flex items-center space-x-2 mb-2"><span className="text-xl">{statusEmojis[req.status]}</span><span className="font-medium">{req.status === 'approved' ? 'Aprobado' : req.status === 'pending' ? 'Pendiente' : 'Denegado'}</span></div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-xl">{getTypeEmoji(req)}</span>
+                  <span className="font-medium">
+                    {req.type === 'other' ? 'Día especial' : (req.status === 'approved' ? 'Aprobado' : req.status === 'pending' ? 'Pendiente' : 'Denegado')}
+                  </span>
+                </div>
                 <div className="text-sm">{req.isRange ? <p>{req.startDate} al {req.endDate}</p> : <p>{req.dates?.join(', ')}</p>}</div>
               </div>
               {req.status === 'pending' && <button onClick={() => deleteRequest(req.id)} className="text-red-600 flex items-center"><Trash2 className="w-4 h-4" /><span className="text-sm ml-1">Cancelar</span></button>}
