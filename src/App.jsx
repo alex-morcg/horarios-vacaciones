@@ -21,22 +21,22 @@ const VacationManager = () => {
   const [viewingUserHistory, setViewingUserHistory] = useState(null);
 
   const defaultHolidays = [
-    { date: '2026-01-01', name: 'Año Nuevo' }, { date: '2026-01-06', name: 'Reyes' },
-    { date: '2026-04-03', name: 'Viernes Santo' }, { date: '2026-04-06', name: 'Lunes de Pascua' },
-    { date: '2026-05-01', name: 'Fiesta del Trabajo' }, { date: '2026-06-24', name: 'San Juan' },
-    { date: '2026-08-15', name: 'Asunción' }, { date: '2026-09-11', name: 'Diada de Cataluña' },
-    { date: '2026-09-24', name: 'La Mercè' }, { date: '2026-10-12', name: 'Fiesta Nacional' },
-    { date: '2026-11-01', name: 'Todos los Santos' }, { date: '2026-12-06', name: 'Constitución' },
-    { date: '2026-12-08', name: 'Inmaculada' }, { date: '2026-12-25', name: 'Navidad' },
-    { date: '2026-12-26', name: 'San Esteban' },
-    { date: '2027-01-01', name: 'Año Nuevo' }, { date: '2027-01-06', name: 'Reyes' },
-    { date: '2027-03-26', name: 'Viernes Santo' }, { date: '2027-03-29', name: 'Lunes de Pascua' },
-    { date: '2027-05-01', name: 'Fiesta del Trabajo' }, { date: '2027-06-24', name: 'San Juan' },
-    { date: '2027-08-15', name: 'Asunción' }, { date: '2027-09-11', name: 'Diada de Cataluña' },
-    { date: '2027-09-24', name: 'La Mercè' }, { date: '2027-10-12', name: 'Fiesta Nacional' },
-    { date: '2027-11-01', name: 'Todos los Santos' }, { date: '2027-12-06', name: 'Constitución' },
-    { date: '2027-12-08', name: 'Inmaculada' }, { date: '2027-12-25', name: 'Navidad' },
-    { date: '2027-12-26', name: 'San Esteban' }
+    { date: '2026-01-01', name: 'Año Nuevo', isLocal: true }, { date: '2026-01-06', name: 'Reyes', isLocal: true },
+    { date: '2026-04-03', name: 'Viernes Santo', isLocal: true }, { date: '2026-04-06', name: 'Lunes de Pascua', isLocal: true },
+    { date: '2026-05-01', name: 'Fiesta del Trabajo', isLocal: true }, { date: '2026-06-24', name: 'San Juan', isLocal: true },
+    { date: '2026-08-15', name: 'Asunción', isLocal: true }, { date: '2026-09-11', name: 'Diada de Cataluña', isLocal: true },
+    { date: '2026-09-24', name: 'La Mercè', isLocal: true }, { date: '2026-10-12', name: 'Fiesta Nacional', isLocal: true },
+    { date: '2026-11-01', name: 'Todos los Santos', isLocal: true }, { date: '2026-12-06', name: 'Constitución', isLocal: true },
+    { date: '2026-12-08', name: 'Inmaculada', isLocal: true }, { date: '2026-12-25', name: 'Navidad', isLocal: true },
+    { date: '2026-12-26', name: 'San Esteban', isLocal: true },
+    { date: '2027-01-01', name: 'Año Nuevo', isLocal: true }, { date: '2027-01-06', name: 'Reyes', isLocal: true },
+    { date: '2027-03-26', name: 'Viernes Santo', isLocal: true }, { date: '2027-03-29', name: 'Lunes de Pascua', isLocal: true },
+    { date: '2027-05-01', name: 'Fiesta del Trabajo', isLocal: true }, { date: '2027-06-24', name: 'San Juan', isLocal: true },
+    { date: '2027-08-15', name: 'Asunción', isLocal: true }, { date: '2027-09-11', name: 'Diada de Cataluña', isLocal: true },
+    { date: '2027-09-24', name: 'La Mercè', isLocal: true }, { date: '2027-10-12', name: 'Fiesta Nacional', isLocal: true },
+    { date: '2027-11-01', name: 'Todos los Santos', isLocal: true }, { date: '2027-12-06', name: 'Constitución', isLocal: true },
+    { date: '2027-12-08', name: 'Inmaculada', isLocal: true }, { date: '2027-12-25', name: 'Navidad', isLocal: true },
+    { date: '2027-12-26', name: 'San Esteban', isLocal: true }
   ];
 
   useEffect(() => {
@@ -110,7 +110,7 @@ const VacationManager = () => {
   const addRequest = async (r) => { await addDoc(collection(db, 'vacation_requests'), r); showNotification('success', 'Solicitud enviada'); };
   const updateRequest = async (id, r) => { await updateDoc(doc(db, 'vacation_requests', id), r); };
   const deleteRequest = async (id) => { await deleteDoc(doc(db, 'vacation_requests', id)); showNotification('success', 'Solicitud cancelada'); };
-  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), h); showNotification('success', 'Festivo añadido'); };
+  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: false }); showNotification('success', 'Festivo añadido'); };
   const deleteHoliday = async (id) => { await deleteDoc(doc(db, 'vacation_holidays', id)); showNotification('success', 'Festivo eliminado'); };
   const addDepartment = async (d) => { await addDoc(collection(db, 'vacation_departments'), d); showNotification('success', 'Departamento creado'); };
   const updateDepartment = async (id, d) => { await updateDoc(doc(db, 'vacation_departments', id), d); showNotification('success', 'Departamento actualizado'); };
@@ -257,7 +257,7 @@ const CalendarView = ({ view, setView, currentDate, setCurrentDate, requests, us
       <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg"><span className="font-medium">Leyenda:</span><span>✅ Aprobado</span><span>⏳ Pendiente</span><span>❌ Denegado</span><span>⚠️ Día especial</span></div>
       {view === 'month' && <MonthCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
       {view === 'week' && <WeekCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
-      {view === 'year' && <YearCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} />}
+      {view === 'year' && <YearCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
     </div>
   );
 };
@@ -359,29 +359,184 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
   );
 };
 
-const YearCalendar = ({ currentDate, setCurrentDate, requests }) => {
+const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments }) => {
   const year = currentDate.getFullYear();
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const getCount = (month) => requests.filter(r => {
-    if (r.status !== 'approved') return false;
-    if (r.isRange) { const s = new Date(r.startDate), e = new Date(r.endDate); return (s.getFullYear() === year && s.getMonth() === month) || (e.getFullYear() === year && e.getMonth() === month); }
-    return r.dates?.some(d => { const dt = new Date(d); return dt.getFullYear() === year && dt.getMonth() === month; });
-  }).length;
+  const [hoveredDay, setHoveredDay] = useState(null);
+  const monthNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const dayNames = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+
+  // Generate all days of the year
+  const getAllDaysOfYear = () => {
+    const days = [];
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31);
+
+    // Find the Monday of the week containing Jan 1
+    let current = new Date(startDate);
+    const dayOfWeek = current.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    current.setDate(current.getDate() + diff);
+
+    // Generate weeks until we pass Dec 31
+    while (current <= endDate || current.getDay() !== 1) {
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+      days.push(week);
+      if (current > endDate && current.getDay() === 1) break;
+    }
+    return days;
+  };
+
+  const weeks = getAllDaysOfYear();
+
+  const getDateStr = (date) => date.toISOString().split('T')[0];
+
+  const getHolidayInfo = (dateStr) => holidays.find(h => h.date === dateStr);
+
+  const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
+
+  const getRequestsForDate = (dateStr) => {
+    return requests.filter(r => {
+      if (r.status !== 'approved' && r.status !== 'pending') return false;
+      if (r.isRange) {
+        return dateStr >= r.startDate && dateStr <= r.endDate;
+      }
+      return r.dates?.includes(dateStr);
+    });
+  };
+
+  const getUsersForDate = (dateStr) => {
+    const dayRequests = getRequestsForDate(dateStr);
+    return dayRequests.map(r => {
+      const user = users.find(u => u.code === r.userCode);
+      return {
+        user,
+        request: r,
+        depts: getUserDepartments(user)
+      };
+    });
+  };
+
+  const today = new Date();
+  const todayStr = getDateStr(today);
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <button onClick={() => setCurrentDate(new Date(year - 1, 0, 1))} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft /></button>
         <h2 className="text-2xl font-bold">{year}</h2>
         <button onClick={() => setCurrentDate(new Date(year + 1, 0, 1))} className="p-2 hover:bg-gray-100 rounded"><ChevronRight /></button>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {monthNames.map((name, month) => (
-          <div key={month} onClick={() => setCurrentDate(new Date(year, month, 1))} className="border rounded-lg p-4 hover:shadow-md cursor-pointer">
-            <h3 className="font-semibold text-lg mb-2">{name}</h3>
-            <p className="text-sm text-gray-600">{getCount(month)} aprobadas</p>
+
+      <div className="overflow-x-auto">
+        <div className="min-w-[900px]">
+          {/* Header with day names */}
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-gray-200 mb-1">
+            <div className="bg-white p-1 text-xs font-semibold text-gray-500"></div>
+            {dayNames.map(d => (
+              <div key={d} className="bg-white p-1 text-xs font-semibold text-gray-500 text-center">{d}</div>
+            ))}
           </div>
-        ))}
+
+          {/* Calendar grid */}
+          <div className="space-y-px">
+            {weeks.map((week, weekIdx) => {
+              // Check if this is the first week of a new month
+              const firstDayOfWeek = week[0];
+              const lastDayOfWeek = week[6];
+              const showMonthLabel = week.some((d, i) => d.getDate() === 1 && d.getFullYear() === year);
+              const monthLabelDay = week.find(d => d.getDate() === 1 && d.getFullYear() === year);
+
+              return (
+                <div key={weekIdx} className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-gray-200">
+                  {/* Month label column */}
+                  <div className="bg-white p-1 text-xs font-bold text-gray-700 flex items-center justify-center">
+                    {monthLabelDay && monthNames[monthLabelDay.getMonth()]}
+                  </div>
+
+                  {/* Days */}
+                  {week.map((date, dayIdx) => {
+                    const dateStr = getDateStr(date);
+                    const isCurrentYear = date.getFullYear() === year;
+                    const holiday = getHolidayInfo(dateStr);
+                    const weekend = isWeekend(date);
+                    const isToday = dateStr === todayStr;
+                    const usersOnDay = isCurrentYear ? getUsersForDate(dateStr) : [];
+                    const userCount = usersOnDay.length;
+
+                    // Determine background color
+                    let bgClass = 'bg-white';
+                    let textClass = 'text-gray-900';
+
+                    if (!isCurrentYear) {
+                      bgClass = 'bg-gray-50';
+                      textClass = 'text-gray-300';
+                    } else if (holiday) {
+                      bgClass = holiday.isLocal ? 'bg-red-100' : 'bg-purple-100';
+                      textClass = holiday.isLocal ? 'text-red-700' : 'text-purple-700';
+                    } else if (weekend) {
+                      bgClass = 'bg-gray-100';
+                      textClass = 'text-gray-400';
+                    }
+
+                    return (
+                      <div
+                        key={dayIdx}
+                        className={`${bgClass} p-1 min-h-[32px] relative cursor-pointer hover:ring-2 hover:ring-indigo-300 ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                        onMouseEnter={() => userCount > 0 && setHoveredDay(dateStr)}
+                        onMouseLeave={() => setHoveredDay(null)}
+                      >
+                        <div className={`text-xs font-medium ${textClass} ${isToday ? 'bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center' : ''}`}>
+                          {date.getDate()}
+                        </div>
+
+                        {/* User count badge */}
+                        {userCount > 0 && isCurrentYear && !weekend && !holiday && (
+                          <div className="absolute bottom-0.5 right-0.5 bg-indigo-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                            {userCount}
+                          </div>
+                        )}
+
+                        {/* Holiday indicator */}
+                        {holiday && isCurrentYear && (
+                          <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>
+                            {holiday.isLocal ? '🔴' : '🟣'}
+                          </div>
+                        )}
+
+                        {/* Hover tooltip */}
+                        {hoveredDay === dateStr && userCount > 0 && (
+                          <div className="absolute z-50 left-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-2 min-w-[150px]">
+                            <div className="text-xs font-semibold mb-1 text-gray-700">{date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                            <div className="space-y-1">
+                              {usersOnDay.map((item, idx) => (
+                                <div key={idx} className="text-xs flex items-center gap-1">
+                                  <span>{item.request.status === 'approved' ? '✅' : '⏳'}</span>
+                                  <span>{item.user?.name} {item.user?.lastName}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 flex flex-wrap gap-4 text-xs bg-gray-50 p-3 rounded-lg">
+        <span className="font-medium">Leyenda:</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 rounded"></span> Festivo local</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-100 rounded"></span> Día de cierre</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 bg-indigo-500 text-white rounded-full text-[10px] flex items-center justify-center">3</span> Personas de vacaciones</span>
       </div>
     </div>
   );
