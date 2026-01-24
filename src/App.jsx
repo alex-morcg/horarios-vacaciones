@@ -507,6 +507,8 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                     const weekend = isWeekend(date);
                     const isToday = dateStr === todayStr;
                     const usersOnDay = isCurrentYear ? getUsersForDate(dateStr) : [];
+                    const approvedCount = usersOnDay.filter(u => u.request.status === 'approved').length;
+                    const pendingCount = usersOnDay.filter(u => u.request.status === 'pending').length;
                     const userCount = usersOnDay.length;
 
                     // Determine background color
@@ -524,6 +526,27 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                       textClass = 'text-gray-400';
                     }
 
+                    // Get department color for user in tooltip
+                    const getDeptBgClass = (depts) => {
+                      if (!depts || depts.length === 0) return 'bg-gray-100';
+                      const dept = departments.find(d => d.name === depts[0]);
+                      if (!dept) return 'bg-gray-100';
+                      // Extract bg class from color (e.g., 'bg-blue-100 text-blue-800' -> 'bg-blue-200')
+                      const colorMap = {
+                        'bg-blue-100 text-blue-800': 'bg-blue-200',
+                        'bg-purple-100 text-purple-800': 'bg-purple-200',
+                        'bg-green-100 text-green-800': 'bg-green-200',
+                        'bg-yellow-100 text-yellow-800': 'bg-yellow-200',
+                        'bg-orange-100 text-orange-800': 'bg-orange-200',
+                        'bg-red-100 text-red-800': 'bg-red-200',
+                        'bg-pink-100 text-pink-800': 'bg-pink-200',
+                        'bg-teal-100 text-teal-800': 'bg-teal-200',
+                        'bg-indigo-100 text-indigo-800': 'bg-indigo-200',
+                        'bg-gray-100 text-gray-800': 'bg-gray-200',
+                      };
+                      return colorMap[dept.color] || 'bg-gray-200';
+                    };
+
                     return (
                       <div
                         key={dayIdx}
@@ -535,10 +558,19 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                           {date.getDate()}
                         </div>
 
-                        {/* User count badge */}
-                        {userCount > 0 && isCurrentYear && !weekend && !holiday && (
-                          <div className="absolute bottom-0.5 right-0.5 bg-indigo-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
-                            {userCount}
+                        {/* User count badges - separated by status */}
+                        {isCurrentYear && !weekend && !holiday && (approvedCount > 0 || pendingCount > 0) && (
+                          <div className="absolute bottom-0.5 right-0.5 flex gap-0.5">
+                            {approvedCount > 0 && (
+                              <div className="bg-green-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                {approvedCount}
+                              </div>
+                            )}
+                            {pendingCount > 0 && (
+                              <div className="bg-orange-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                {pendingCount}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -551,13 +583,13 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
 
                         {/* Hover tooltip */}
                         {hoveredDay === dateStr && userCount > 0 && (
-                          <div className="absolute z-50 left-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-2 min-w-[150px]">
-                            <div className="text-xs font-semibold mb-1 text-gray-700">{date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                          <div className="absolute z-50 left-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-2 min-w-[180px]">
+                            <div className="text-xs font-semibold mb-2 text-gray-700">{date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
                             <div className="space-y-1">
                               {usersOnDay.map((item, idx) => (
-                                <div key={idx} className="text-xs flex items-center gap-1">
+                                <div key={idx} className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(item.depts)}`}>
                                   <span>{item.request.status === 'approved' ? '✅' : '⏳'}</span>
-                                  <span>{item.user?.name} {item.user?.lastName}</span>
+                                  <span className="font-medium">{item.user?.name} {item.user?.lastName}</span>
                                 </div>
                               ))}
                             </div>
@@ -578,7 +610,8 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
         <span className="font-medium">Leyenda:</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 border border-red-300 rounded"></span> Festivo local</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></span> Día de cierre</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-4 bg-indigo-500 text-white rounded-full text-[10px] flex items-center justify-center">3</span> Personas de vacaciones</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 bg-green-500 text-white rounded-full text-[10px] flex items-center justify-center">2</span> Aprobadas</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center">1</span> Pendientes</span>
       </div>
     </div>
   );
