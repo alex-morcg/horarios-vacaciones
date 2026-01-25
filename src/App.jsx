@@ -21,22 +21,22 @@ const VacationManager = () => {
   const [viewingUserHistory, setViewingUserHistory] = useState(null);
 
   const defaultHolidays = [
-    { date: '2026-01-01', name: 'Año Nuevo', isLocal: true }, { date: '2026-01-06', name: 'Reyes', isLocal: true },
-    { date: '2026-04-03', name: 'Viernes Santo', isLocal: true }, { date: '2026-04-06', name: 'Lunes de Pascua', isLocal: true },
-    { date: '2026-05-01', name: 'Fiesta del Trabajo', isLocal: true }, { date: '2026-06-24', name: 'San Juan', isLocal: true },
-    { date: '2026-08-15', name: 'Asunción', isLocal: true }, { date: '2026-09-11', name: 'Diada de Cataluña', isLocal: true },
-    { date: '2026-09-24', name: 'La Mercè', isLocal: true }, { date: '2026-10-12', name: 'Fiesta Nacional', isLocal: true },
-    { date: '2026-11-01', name: 'Todos los Santos', isLocal: true }, { date: '2026-12-06', name: 'Constitución', isLocal: true },
-    { date: '2026-12-08', name: 'Inmaculada', isLocal: true }, { date: '2026-12-25', name: 'Navidad', isLocal: true },
-    { date: '2026-12-26', name: 'San Esteban', isLocal: true },
-    { date: '2027-01-01', name: 'Año Nuevo', isLocal: true }, { date: '2027-01-06', name: 'Reyes', isLocal: true },
-    { date: '2027-03-26', name: 'Viernes Santo', isLocal: true }, { date: '2027-03-29', name: 'Lunes de Pascua', isLocal: true },
-    { date: '2027-05-01', name: 'Fiesta del Trabajo', isLocal: true }, { date: '2027-06-24', name: 'San Juan', isLocal: true },
-    { date: '2027-08-15', name: 'Asunción', isLocal: true }, { date: '2027-09-11', name: 'Diada de Cataluña', isLocal: true },
-    { date: '2027-09-24', name: 'La Mercè', isLocal: true }, { date: '2027-10-12', name: 'Fiesta Nacional', isLocal: true },
-    { date: '2027-11-01', name: 'Todos los Santos', isLocal: true }, { date: '2027-12-06', name: 'Constitución', isLocal: true },
-    { date: '2027-12-08', name: 'Inmaculada', isLocal: true }, { date: '2027-12-25', name: 'Navidad', isLocal: true },
-    { date: '2027-12-26', name: 'San Esteban', isLocal: true }
+    { date: '2026-01-01', name: 'Año Nuevo', isLocal: true, emoji: '📅' }, { date: '2026-01-06', name: 'Reyes', isLocal: true, emoji: '📅' },
+    { date: '2026-04-03', name: 'Viernes Santo', isLocal: true, emoji: '📅' }, { date: '2026-04-06', name: 'Lunes de Pascua', isLocal: true, emoji: '📅' },
+    { date: '2026-05-01', name: 'Fiesta del Trabajo', isLocal: true, emoji: '📅' }, { date: '2026-06-24', name: 'San Juan', isLocal: true, emoji: '📅' },
+    { date: '2026-08-15', name: 'Asunción', isLocal: true, emoji: '📅' }, { date: '2026-09-11', name: 'Diada de Cataluña', isLocal: true, emoji: '📅' },
+    { date: '2026-09-24', name: 'La Mercè', isLocal: true, emoji: '📅' }, { date: '2026-10-12', name: 'Fiesta Nacional', isLocal: true, emoji: '📅' },
+    { date: '2026-11-01', name: 'Todos los Santos', isLocal: true, emoji: '📅' }, { date: '2026-12-06', name: 'Constitución', isLocal: true, emoji: '📅' },
+    { date: '2026-12-08', name: 'Inmaculada', isLocal: true, emoji: '📅' }, { date: '2026-12-25', name: 'Navidad', isLocal: true, emoji: '📅' },
+    { date: '2026-12-26', name: 'San Esteban', isLocal: true, emoji: '📅' },
+    { date: '2027-01-01', name: 'Año Nuevo', isLocal: true, emoji: '📅' }, { date: '2027-01-06', name: 'Reyes', isLocal: true, emoji: '📅' },
+    { date: '2027-03-26', name: 'Viernes Santo', isLocal: true, emoji: '📅' }, { date: '2027-03-29', name: 'Lunes de Pascua', isLocal: true, emoji: '📅' },
+    { date: '2027-05-01', name: 'Fiesta del Trabajo', isLocal: true, emoji: '📅' }, { date: '2027-06-24', name: 'San Juan', isLocal: true, emoji: '📅' },
+    { date: '2027-08-15', name: 'Asunción', isLocal: true, emoji: '📅' }, { date: '2027-09-11', name: 'Diada de Cataluña', isLocal: true, emoji: '📅' },
+    { date: '2027-09-24', name: 'La Mercè', isLocal: true, emoji: '📅' }, { date: '2027-10-12', name: 'Fiesta Nacional', isLocal: true, emoji: '📅' },
+    { date: '2027-11-01', name: 'Todos los Santos', isLocal: true, emoji: '📅' }, { date: '2027-12-06', name: 'Constitución', isLocal: true, emoji: '📅' },
+    { date: '2027-12-08', name: 'Inmaculada', isLocal: true, emoji: '📅' }, { date: '2027-12-25', name: 'Navidad', isLocal: true, emoji: '📅' },
+    { date: '2027-12-26', name: 'San Esteban', isLocal: true, emoji: '📅' }
   ];
 
   useEffect(() => {
