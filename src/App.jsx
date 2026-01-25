@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.11)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.12)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.11)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.12)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2139,6 +2139,7 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
           handleClockAction={handleClockAction}
           calculateWorkedTime={calculateWorkedTime}
           timeclockSettings={timeclockSettings}
+          onReopenDay={() => todayRecord && updateTimeclockRecord(todayRecord.id, { endTime: null })}
         />
       )}
 
@@ -2153,7 +2154,7 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
 };
 
 // ==================== USER DAY VIEW ====================
-const TimeclockUserDay = ({ todayRecord, currentTime, locationStatus, handleClockAction, calculateWorkedTime, timeclockSettings }) => {
+const TimeclockUserDay = ({ todayRecord, currentTime, locationStatus, handleClockAction, calculateWorkedTime, timeclockSettings, onReopenDay }) => {
   const workedTime = calculateWorkedTime(todayRecord);
   const hasActiveBreakfast = todayRecord?.breaks?.some(b => b.type === 'desayuno' && !b.endTime);
   const hasActiveLunch = todayRecord?.breaks?.some(b => b.type === 'comida' && !b.endTime);
@@ -2291,6 +2292,17 @@ const TimeclockUserDay = ({ todayRecord, currentTime, locationStatus, handleCloc
               <span className="text-2xl font-bold text-indigo-600">{workedTime.formatted}</span>
             </div>
           </div>
+
+          {/* Reopen day button */}
+          {todayRecord.endTime && onReopenDay && (
+            <button
+              onClick={onReopenDay}
+              className="mt-4 w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium flex items-center justify-center gap-2 transition-all"
+            >
+              <Play className="w-4 h-4" />
+              Me he equivocado, jornada no terminada aún
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2751,8 +2763,10 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
                 return (
                   <div key={record.id} className="bg-white border rounded-lg p-4 shadow-sm">
                     {isEditing ? (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <div className="font-semibold">{user?.name} {user?.lastName} - {formatDate(record.date)}</div>
+
+                        {/* Entry/Exit times */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm text-gray-600">Entrada</label>
@@ -2773,7 +2787,79 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
                             />
                           </div>
                         </div>
+
+                        {/* Breaks editing */}
+                        {editForm.breaks?.length > 0 && (
+                          <div className="border-t pt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Pausas</label>
+                            {editForm.breaks.map((brk, idx) => (
+                              <div key={idx} className="grid grid-cols-5 gap-2 mb-2 items-center">
+                                <span className="text-sm text-gray-600 capitalize">{brk.type}:</span>
+                                <input
+                                  type="time"
+                                  value={brk.startTime || ''}
+                                  onChange={(e) => {
+                                    const newBreaks = [...editForm.breaks];
+                                    newBreaks[idx] = { ...newBreaks[idx], startTime: e.target.value };
+                                    setEditForm({ ...editForm, breaks: newBreaks });
+                                  }}
+                                  className="px-2 py-1 border rounded text-sm"
+                                  placeholder="Inicio"
+                                />
+                                <span className="text-center">-</span>
+                                <input
+                                  type="time"
+                                  value={brk.endTime || ''}
+                                  onChange={(e) => {
+                                    const newBreaks = [...editForm.breaks];
+                                    newBreaks[idx] = { ...newBreaks[idx], endTime: e.target.value };
+                                    setEditForm({ ...editForm, breaks: newBreaks });
+                                  }}
+                                  className="px-2 py-1 border rounded text-sm"
+                                  placeholder="Fin"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const newBreaks = editForm.breaks.filter((_, i) => i !== idx);
+                                    setEditForm({ ...editForm, breaks: newBreaks });
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                  title="Eliminar pausa"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Add break buttons */}
                         <div className="flex gap-2">
+                          {!editForm.breaks?.some(b => b.type === 'desayuno') && (
+                            <button
+                              onClick={() => setEditForm({
+                                ...editForm,
+                                breaks: [...(editForm.breaks || []), { type: 'desayuno', startTime: '', endTime: '' }]
+                              })}
+                              className="text-sm px-3 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                            >
+                              + Desayuno
+                            </button>
+                          )}
+                          {!editForm.breaks?.some(b => b.type === 'comida') && (
+                            <button
+                              onClick={() => setEditForm({
+                                ...editForm,
+                                breaks: [...(editForm.breaks || []), { type: 'comida', startTime: '', endTime: '' }]
+                              })}
+                              className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                            >
+                              + Comida
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
                           <button
                             onClick={() => handleSaveEdit(record.id)}
                             className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2"
