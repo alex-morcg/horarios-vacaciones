@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, FileText, Settings, LogOut, Plus, Check, X, Trash2, Eye, ChevronLeft, ChevronRight, Wifi, WifiOff, MessageSquare } from 'lucide-react';
+import { Calendar, Users, FileText, Settings, LogOut, Plus, Check, X, Trash2, Eye, ChevronLeft, ChevronRight, Wifi, WifiOff, MessageSquare, Clock, Play, Pause, Coffee, UtensilsCrossed, Square, MapPin, Edit2, Save } from 'lucide-react';
 import { db } from './firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 
@@ -20,6 +20,8 @@ const VacationManager = () => {
   const [filterUser, setFilterUser] = useState('all');
   const [notification, setNotification] = useState(null);
   const [viewingUserHistory, setViewingUserHistory] = useState(null);
+  const [timeclockRecords, setTimeclockRecords] = useState([]);
+  const [timeclockSettings, setTimeclockSettings] = useState(null);
 
   const defaultHolidays = [
     // 2025
@@ -117,7 +119,16 @@ const VacationManager = () => {
       setFeedbacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    return () => { unsubUsers(); unsubRequests(); unsubHolidays(); unsubDepts(); unsubFeedbacks(); };
+    const unsubTimeclock = onSnapshot(collection(db, 'vacation_timeclock'), (snap) => {
+      setTimeclockRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubTimeclockSettings = onSnapshot(collection(db, 'vacation_timeclock_settings'), (snap) => {
+      const settings = snap.docs.map(d => ({ id: d.id, ...d.data() }))[0];
+      setTimeclockSettings(settings || null);
+    });
+
+    return () => { unsubUsers(); unsubRequests(); unsubHolidays(); unsubDepts(); unsubFeedbacks(); unsubTimeclock(); unsubTimeclockSettings(); };
   }, []);
 
   const getUserDepartments = (user) => user?.departments || [];
@@ -234,6 +245,17 @@ const VacationManager = () => {
   const addFeedback = async (f) => { await addDoc(collection(db, 'vacation_feedbacks'), f); showNotification('success', 'Feedback añadido'); };
   const updateFeedback = async (id, f) => { await updateDoc(doc(db, 'vacation_feedbacks', id), f); };
   const deleteFeedback = async (id) => { await deleteDoc(doc(db, 'vacation_feedbacks', id)); showNotification('success', 'Feedback eliminado'); };
+  const addTimeclockRecord = async (r) => { await addDoc(collection(db, 'vacation_timeclock'), r); };
+  const updateTimeclockRecord = async (id, r) => { await updateDoc(doc(db, 'vacation_timeclock', id), r); };
+  const deleteTimeclockRecord = async (id) => { await deleteDoc(doc(db, 'vacation_timeclock', id)); showNotification('success', 'Registro eliminado'); };
+  const saveTimeclockSettings = async (s) => {
+    if (timeclockSettings?.id) {
+      await updateDoc(doc(db, 'vacation_timeclock_settings', timeclockSettings.id), s);
+    } else {
+      await addDoc(collection(db, 'vacation_timeclock_settings'), s);
+    }
+    showNotification('success', 'Configuración guardada');
+  };
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100"><Calendar className="w-16 h-16 text-indigo-600 animate-pulse" /></div>;
 
@@ -263,8 +285,21 @@ const VacationManager = () => {
       {notification && <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white z-50`}>{notification.message}</div>}
       <nav className="bg-indigo-600 text-white shadow-lg sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <Calendar className="w-8 h-8" />
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`p-2 rounded-lg transition-colors ${activeTab === 'calendar' ? 'bg-indigo-500' : 'hover:bg-indigo-500'}`}
+              title="Calendario"
+            >
+              <Calendar className="w-8 h-8" />
+            </button>
+            <button
+              onClick={() => setActiveTab('timeclock')}
+              className={`p-2 rounded-lg transition-colors ${activeTab === 'timeclock' ? 'bg-indigo-500' : 'hover:bg-indigo-500'}`}
+              title="Fichajes"
+            >
+              <Clock className="w-8 h-8" />
+            </button>
             <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.8)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
@@ -276,15 +311,15 @@ const VacationManager = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="flex border-b overflow-x-auto sticky top-[72px] z-30 bg-white">
-            <TabButton icon={Calendar} label="Calendario" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
-            {currentUser.isAdmin && <>
+            {activeTab !== 'timeclock' && <TabButton icon={Calendar} label="Calendario" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />}
+            {currentUser.isAdmin && activeTab !== 'timeclock' && <>
               <TabButton icon={Users} label="Usuarios" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
               <TabButton icon={FileText} label="Aprobar" active={activeTab === 'approve'} onClick={() => setActiveTab('approve')} />
               <TabButton icon={Settings} label="Festivos" active={activeTab === 'holidays'} onClick={() => setActiveTab('holidays')} />
               <TabButton icon={Users} label="Departamentos" active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} />
             </>}
-            <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />
-            {currentUser.isAdmin && <TabButton icon={MessageSquare} label="Feedback" active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />}
+            {activeTab !== 'timeclock' && <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />}
+            {currentUser.isAdmin && activeTab !== 'timeclock' && <TabButton icon={MessageSquare} label="Feedback" active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />}
           </div>
           <div className="p-6">
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
@@ -294,6 +329,7 @@ const VacationManager = () => {
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} updateUser={updateUser} />}
             {activeTab === 'feedback' && currentUser.isAdmin && <FeedbackManagement feedbacks={feedbacks} addFeedback={addFeedback} updateFeedback={updateFeedback} deleteFeedback={deleteFeedback} currentUser={currentUser} showNotification={showNotification} />}
+            {activeTab === 'timeclock' && <TimeclockView currentUser={currentUser} timeclockRecords={timeclockRecords} addTimeclockRecord={addTimeclockRecord} updateTimeclockRecord={updateTimeclockRecord} deleteTimeclockRecord={deleteTimeclockRecord} timeclockSettings={timeclockSettings} saveTimeclockSettings={saveTimeclockSettings} users={users} showNotification={showNotification} />}
           </div>
         </div>
       </div>
@@ -1920,6 +1956,757 @@ const FeedbackManagement = ({ feedbacks, addFeedback, updateFeedback, deleteFeed
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+// ==================== TIMECLOCK VIEW ====================
+const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, timeclockSettings, saveTimeclockSettings, users, showNotification }) => {
+  const [activeTimeclockTab, setActiveTimeclockTab] = useState('fichar');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [locationStatus, setLocationStatus] = useState(null); // null, 'checking', 'valid', 'invalid', 'error'
+  const [userLocation, setUserLocation] = useState(null);
+
+  // Update current time every second
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayRecord = timeclockRecords.find(r => r.userCode === currentUser.code && r.date === today);
+
+  // Calculate distance between two GPS coordinates (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Check GPS location
+  const checkLocation = () => {
+    return new Promise((resolve) => {
+      if (!timeclockSettings?.latitude || !timeclockSettings?.longitude) {
+        resolve({ valid: true, message: 'GPS no configurado' });
+        return;
+      }
+
+      setLocationStatus('checking');
+
+      if (!navigator.geolocation) {
+        setLocationStatus('error');
+        resolve({ valid: false, message: 'Geolocalización no disponible en tu navegador' });
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const distance = calculateDistance(
+            position.coords.latitude,
+            position.coords.longitude,
+            timeclockSettings.latitude,
+            timeclockSettings.longitude
+          );
+          const isValid = distance <= (timeclockSettings.radius || 100);
+          setUserLocation({ lat: position.coords.latitude, lon: position.coords.longitude, distance });
+          setLocationStatus(isValid ? 'valid' : 'invalid');
+          resolve({
+            valid: isValid,
+            message: isValid ? 'Ubicación válida' : `Estás a ${Math.round(distance)}m de la oficina (máx: ${timeclockSettings.radius || 100}m)`,
+            distance
+          });
+        },
+        (error) => {
+          setLocationStatus('error');
+          let message = 'Error de ubicación';
+          if (error.code === 1) message = 'Permiso de ubicación denegado';
+          if (error.code === 2) message = 'Ubicación no disponible';
+          if (error.code === 3) message = 'Tiempo de espera agotado';
+          resolve({ valid: false, message });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+
+  // Handle clock actions
+  const handleClockAction = async (action) => {
+    const locationCheck = await checkLocation();
+    if (!locationCheck.valid) {
+      showNotification('error', locationCheck.message);
+      return;
+    }
+
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 5);
+
+    if (action === 'start') {
+      await addTimeclockRecord({
+        userCode: currentUser.code,
+        date: today,
+        startTime: timeStr,
+        breaks: [],
+        endTime: null,
+        createdAt: now.toISOString()
+      });
+      showNotification('success', `Jornada iniciada a las ${timeStr}`);
+    } else if (todayRecord) {
+      if (action === 'breakfast' || action === 'lunch') {
+        const breakType = action === 'breakfast' ? 'desayuno' : 'comida';
+        const existingBreak = todayRecord.breaks?.find(b => b.type === breakType && !b.endTime);
+
+        if (existingBreak) {
+          // End existing break
+          const updatedBreaks = todayRecord.breaks.map(b =>
+            b.type === breakType && !b.endTime ? { ...b, endTime: timeStr } : b
+          );
+          await updateTimeclockRecord(todayRecord.id, { breaks: updatedBreaks });
+          showNotification('success', `Pausa ${breakType} finalizada a las ${timeStr}`);
+        } else {
+          // Start new break
+          const newBreaks = [...(todayRecord.breaks || []), { type: breakType, startTime: timeStr, endTime: null }];
+          await updateTimeclockRecord(todayRecord.id, { breaks: newBreaks });
+          showNotification('success', `Pausa ${breakType} iniciada a las ${timeStr}`);
+        }
+      } else if (action === 'end') {
+        await updateTimeclockRecord(todayRecord.id, { endTime: timeStr });
+        showNotification('success', `Jornada finalizada a las ${timeStr}`);
+      }
+    }
+  };
+
+  // Calculate worked time
+  const calculateWorkedTime = (record) => {
+    if (!record?.startTime) return { hours: 0, minutes: 0, formatted: '0h 0m' };
+
+    const start = new Date(`${record.date}T${record.startTime}`);
+    const end = record.endTime ? new Date(`${record.date}T${record.endTime}`) : new Date();
+    let totalMinutes = Math.floor((end - start) / 60000);
+
+    // Don't subtract breaks - they are just recorded, not deducted
+    // (as per user requirement)
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return { hours, minutes, formatted: `${hours}h ${minutes}m` };
+  };
+
+  if (currentUser.isAdmin) {
+    return (
+      <TimeclockAdminView
+        timeclockRecords={timeclockRecords}
+        users={users}
+        timeclockSettings={timeclockSettings}
+        saveTimeclockSettings={saveTimeclockSettings}
+        updateTimeclockRecord={updateTimeclockRecord}
+        deleteTimeclockRecord={deleteTimeclockRecord}
+        showNotification={showNotification}
+        calculateWorkedTime={calculateWorkedTime}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Sub-tabs for normal users */}
+      <div className="flex space-x-2 border-b pb-2">
+        <button
+          onClick={() => setActiveTimeclockTab('fichar')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeTimeclockTab === 'fichar' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Fichar
+        </button>
+        <button
+          onClick={() => setActiveTimeclockTab('historial')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeTimeclockTab === 'historial' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Historial
+        </button>
+      </div>
+
+      {activeTimeclockTab === 'fichar' && (
+        <TimeclockUserDay
+          todayRecord={todayRecord}
+          currentTime={currentTime}
+          locationStatus={locationStatus}
+          handleClockAction={handleClockAction}
+          calculateWorkedTime={calculateWorkedTime}
+          timeclockSettings={timeclockSettings}
+        />
+      )}
+
+      {activeTimeclockTab === 'historial' && (
+        <TimeclockUserHistory
+          timeclockRecords={timeclockRecords.filter(r => r.userCode === currentUser.code)}
+          calculateWorkedTime={calculateWorkedTime}
+        />
+      )}
+    </div>
+  );
+};
+
+// ==================== USER DAY VIEW ====================
+const TimeclockUserDay = ({ todayRecord, currentTime, locationStatus, handleClockAction, calculateWorkedTime, timeclockSettings }) => {
+  const workedTime = calculateWorkedTime(todayRecord);
+  const hasActiveBreakfast = todayRecord?.breaks?.some(b => b.type === 'desayuno' && !b.endTime);
+  const hasActiveLunch = todayRecord?.breaks?.some(b => b.type === 'comida' && !b.endTime);
+  const hasEndedBreakfast = todayRecord?.breaks?.some(b => b.type === 'desayuno' && b.endTime);
+  const hasEndedLunch = todayRecord?.breaks?.some(b => b.type === 'comida' && b.endTime);
+
+  return (
+    <div className="max-w-lg mx-auto">
+      {/* Current time display */}
+      <div className="text-center mb-8">
+        <div className="text-6xl font-bold text-gray-800 mb-2">
+          {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+        <div className="text-gray-500">
+          {currentTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
+      </div>
+
+      {/* GPS Status */}
+      {timeclockSettings?.latitude && (
+        <div className={`flex items-center justify-center gap-2 mb-4 p-2 rounded-lg ${
+          locationStatus === 'valid' ? 'bg-green-100 text-green-700' :
+          locationStatus === 'invalid' ? 'bg-red-100 text-red-700' :
+          locationStatus === 'error' ? 'bg-red-100 text-red-700' :
+          'bg-gray-100 text-gray-600'
+        }`}>
+          <MapPin className="w-4 h-4" />
+          <span className="text-sm">
+            {locationStatus === 'checking' && 'Verificando ubicación...'}
+            {locationStatus === 'valid' && 'Ubicación válida'}
+            {locationStatus === 'invalid' && 'Fuera de la zona permitida'}
+            {locationStatus === 'error' && 'Error de ubicación'}
+            {!locationStatus && 'GPS requerido para fichar'}
+          </span>
+        </div>
+      )}
+
+      {/* Main action buttons */}
+      <div className="space-y-4">
+        {!todayRecord ? (
+          <button
+            onClick={() => handleClockAction('start')}
+            className="w-full py-6 bg-green-500 hover:bg-green-600 text-white rounded-xl text-2xl font-bold flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.02]"
+          >
+            <Play className="w-8 h-8" />
+            Empezar Jornada
+          </button>
+        ) : (
+          <>
+            {/* Status message */}
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+              <div className="text-green-700 font-semibold text-lg">
+                Jornada empezada a las {todayRecord.startTime}
+              </div>
+              {todayRecord.endTime && (
+                <div className="text-green-600 mt-1">
+                  Finalizada a las {todayRecord.endTime}
+                </div>
+              )}
+            </div>
+
+            {/* Break buttons */}
+            {!todayRecord.endTime && (
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => handleClockAction('breakfast')}
+                  className={`py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                    hasActiveBreakfast
+                      ? 'bg-orange-500 text-white hover:bg-orange-600'
+                      : hasEndedBreakfast
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                  }`}
+                  disabled={hasEndedBreakfast && !hasActiveBreakfast}
+                >
+                  <Coffee className="w-5 h-5" />
+                  {hasActiveBreakfast ? 'Fin Desayuno' : hasEndedBreakfast ? 'Desayuno ✓' : 'Pausa Desayuno'}
+                </button>
+                <button
+                  onClick={() => handleClockAction('lunch')}
+                  className={`py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                    hasActiveLunch
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : hasEndedLunch
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  }`}
+                  disabled={hasEndedLunch && !hasActiveLunch}
+                >
+                  <UtensilsCrossed className="w-5 h-5" />
+                  {hasActiveLunch ? 'Fin Comida' : hasEndedLunch ? 'Comida ✓' : 'Pausa Comida'}
+                </button>
+              </div>
+            )}
+
+            {/* End day button */}
+            {!todayRecord.endTime && (
+              <button
+                onClick={() => handleClockAction('end')}
+                className="w-full py-5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xl font-bold flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.02]"
+              >
+                <Square className="w-6 h-6" />
+                Finalizar Jornada
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Day summary */}
+      {todayRecord && (
+        <div className="mt-8 bg-gray-50 rounded-xl p-6">
+          <h3 className="font-semibold text-gray-800 mb-4 text-lg">Resumen del día</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Inicio:</span>
+              <span className="font-medium">{todayRecord.startTime}</span>
+            </div>
+            {todayRecord.breaks?.map((brk, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className="text-gray-600 capitalize">Pausa {brk.type}:</span>
+                <span className="font-medium">
+                  {brk.startTime} - {brk.endTime || 'en curso'}
+                </span>
+              </div>
+            ))}
+            {todayRecord.endTime && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Fin:</span>
+                <span className="font-medium">{todayRecord.endTime}</span>
+              </div>
+            )}
+            <div className="border-t pt-3 mt-3 flex justify-between items-center">
+              <span className="text-gray-800 font-semibold">Tiempo trabajado:</span>
+              <span className="text-2xl font-bold text-indigo-600">{workedTime.formatted}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== USER HISTORY VIEW ====================
+const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
+  const sortedRecords = [...timeclockRecords].sort((a, b) => b.date.localeCompare(a.date));
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-800">Historial de fichajes</h3>
+
+      {sortedRecords.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No hay registros de fichaje
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sortedRecords.map(record => {
+            const worked = calculateWorkedTime(record);
+            return (
+              <div key={record.id} className="bg-white border rounded-lg p-4 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-semibold text-gray-800">{formatDate(record.date)}</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      {record.startTime} - {record.endTime || 'En curso'}
+                    </div>
+                    {record.breaks?.length > 0 && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Pausas: {record.breaks.map(b => `${b.type} (${b.startTime}-${b.endTime || '...'})`).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-indigo-600">{worked.formatted}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== ADMIN VIEW ====================
+const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime }) => {
+  const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedUser, setSelectedUser] = useState('all');
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  // GPS Settings state
+  const [gpsForm, setGpsForm] = useState({
+    latitude: timeclockSettings?.latitude || '',
+    longitude: timeclockSettings?.longitude || '',
+    radius: timeclockSettings?.radius || 100
+  });
+
+  useEffect(() => {
+    if (timeclockSettings) {
+      setGpsForm({
+        latitude: timeclockSettings.latitude || '',
+        longitude: timeclockSettings.longitude || '',
+        radius: timeclockSettings.radius || 100
+      });
+    }
+  }, [timeclockSettings]);
+
+  const handleSaveGps = async () => {
+    if (!gpsForm.latitude || !gpsForm.longitude) {
+      showNotification('error', 'Introduce las coordenadas');
+      return;
+    }
+    await saveTimeclockSettings({
+      latitude: parseFloat(gpsForm.latitude),
+      longitude: parseFloat(gpsForm.longitude),
+      radius: parseInt(gpsForm.radius) || 100
+    });
+  };
+
+  const handleEditRecord = (record) => {
+    setEditingRecord(record.id);
+    setEditForm({
+      startTime: record.startTime || '',
+      endTime: record.endTime || '',
+      breaks: record.breaks || []
+    });
+  };
+
+  const handleSaveEdit = async (recordId) => {
+    await updateTimeclockRecord(recordId, editForm);
+    setEditingRecord(null);
+    showNotification('success', 'Registro actualizado');
+  };
+
+  // Filter records
+  const filteredRecords = timeclockRecords.filter(r => {
+    if (selectedUser !== 'all' && r.userCode !== selectedUser) return false;
+    return true;
+  }).sort((a, b) => b.date.localeCompare(a.date));
+
+  // Get records for selected date
+  const dateRecords = filteredRecords.filter(r => r.date === selectedDate);
+
+  // Calculate stats
+  const getWeekStats = () => {
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() + 1);
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      weekDates.push(d.toISOString().split('T')[0]);
+    }
+
+    return users.filter(u => !u.isAdmin).map(user => {
+      const userRecords = timeclockRecords.filter(r => r.userCode === user.code && weekDates.includes(r.date));
+      let totalMinutes = 0;
+      userRecords.forEach(r => {
+        const worked = calculateWorkedTime(r);
+        totalMinutes += worked.hours * 60 + worked.minutes;
+      });
+      return {
+        user,
+        records: userRecords,
+        totalHours: Math.floor(totalMinutes / 60),
+        totalMinutes: totalMinutes % 60,
+        daysWorked: userRecords.filter(r => r.endTime).length
+      };
+    });
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Admin sub-tabs */}
+      <div className="flex space-x-2 border-b pb-2">
+        <button
+          onClick={() => setActiveAdminTab('estadisticas')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'estadisticas' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Estadísticas
+        </button>
+        <button
+          onClick={() => setActiveAdminTab('registros')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'registros' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Registros
+        </button>
+        <button
+          onClick={() => setActiveAdminTab('configuracion')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'configuracion' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Configuración GPS
+        </button>
+      </div>
+
+      {/* Stats Tab */}
+      {activeAdminTab === 'estadisticas' && (
+        <div className="space-y-6">
+          <h3 className="text-lg font-semibold">Resumen semanal</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="text-left p-3 border">Empleado</th>
+                  <th className="text-center p-3 border">Días trabajados</th>
+                  <th className="text-center p-3 border">Horas totales</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getWeekStats().map(stat => (
+                  <tr key={stat.user.code} className="hover:bg-gray-50">
+                    <td className="p-3 border font-medium">{stat.user.name} {stat.user.lastName}</td>
+                    <td className="p-3 border text-center">{stat.daysWorked}</td>
+                    <td className="p-3 border text-center font-semibold text-indigo-600">
+                      {stat.totalHours}h {stat.totalMinutes}m
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Records Tab */}
+      {activeAdminTab === 'registros' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Fecha</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Usuario</label>
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="all">Todos</option>
+                {users.filter(u => !u.isAdmin).map(u => (
+                  <option key={u.code} value={u.code}>{u.name} {u.lastName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {dateRecords.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No hay registros para esta fecha
+              </div>
+            ) : (
+              dateRecords.map(record => {
+                const user = users.find(u => u.code === record.userCode);
+                const worked = calculateWorkedTime(record);
+                const isEditing = editingRecord === record.id;
+
+                return (
+                  <div key={record.id} className="bg-white border rounded-lg p-4 shadow-sm">
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <div className="font-semibold">{user?.name} {user?.lastName} - {formatDate(record.date)}</div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm text-gray-600">Entrada</label>
+                            <input
+                              type="time"
+                              value={editForm.startTime}
+                              onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                              className="w-full px-3 py-2 border rounded"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600">Salida</label>
+                            <input
+                              type="time"
+                              value={editForm.endTime}
+                              onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                              className="w-full px-3 py-2 border rounded"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveEdit(record.id)}
+                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2"
+                          >
+                            <Save className="w-4 h-4" /> Guardar
+                          </button>
+                          <button
+                            onClick={() => setEditingRecord(null)}
+                            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-semibold text-gray-800">
+                            {user?.name} {user?.lastName}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            {record.startTime} - {record.endTime || 'En curso'}
+                          </div>
+                          {record.breaks?.length > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Pausas: {record.breaks.map(b => `${b.type} (${b.startTime}-${b.endTime || '...'})`).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-lg font-bold text-indigo-600 mr-2">{worked.formatted}</div>
+                          <button
+                            onClick={() => handleEditRecord(record)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteTimeclockRecord(record.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Show all records if no date filter */}
+          {selectedDate === '' && (
+            <div className="mt-6">
+              <h4 className="font-semibold mb-3">Todos los registros</h4>
+              {filteredRecords.slice(0, 50).map(record => {
+                const user = users.find(u => u.code === record.userCode);
+                const worked = calculateWorkedTime(record);
+                return (
+                  <div key={record.id} className="bg-white border rounded-lg p-3 mb-2 flex justify-between items-center">
+                    <div>
+                      <span className="font-medium">{user?.name}</span>
+                      <span className="text-gray-500 ml-2">{formatDate(record.date)}</span>
+                      <span className="text-gray-600 ml-2">{record.startTime} - {record.endTime || '...'}</span>
+                    </div>
+                    <span className="font-bold text-indigo-600">{worked.formatted}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GPS Config Tab */}
+      {activeAdminTab === 'configuracion' && (
+        <div className="max-w-lg space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+              <MapPin className="w-5 h-5" /> Configuración de ubicación GPS
+            </h3>
+            <p className="text-sm text-blue-700">
+              Define las coordenadas de la oficina y el radio permitido para fichar.
+              Los empleados solo podrán fichar si están dentro del radio especificado.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Latitud</label>
+              <input
+                type="number"
+                step="any"
+                placeholder="Ej: 41.3851"
+                value={gpsForm.latitude}
+                onChange={(e) => setGpsForm({ ...gpsForm, latitude: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Longitud</label>
+              <input
+                type="number"
+                step="any"
+                placeholder="Ej: 2.1734"
+                value={gpsForm.longitude}
+                onChange={(e) => setGpsForm({ ...gpsForm, longitude: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Radio permitido (metros)</label>
+              <input
+                type="number"
+                placeholder="100"
+                value={gpsForm.radius}
+                onChange={(e) => setGpsForm({ ...gpsForm, radius: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <button
+              onClick={handleSaveGps}
+              className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"
+            >
+              <Save className="w-5 h-5" /> Guardar configuración
+            </button>
+          </div>
+
+          {timeclockSettings?.latitude && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="text-sm text-green-700">
+                <strong>Configuración actual:</strong><br />
+                Lat: {timeclockSettings.latitude}, Lon: {timeclockSettings.longitude}<br />
+                Radio: {timeclockSettings.radius}m
+              </div>
+            </div>
+          )}
+
+          <div className="bg-gray-50 border rounded-lg p-4">
+            <h4 className="font-medium mb-2">¿Cómo obtener las coordenadas?</h4>
+            <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+              <li>Abre Google Maps en el navegador</li>
+              <li>Haz clic derecho en la ubicación de la oficina</li>
+              <li>Copia las coordenadas que aparecen (primer número es latitud, segundo longitud)</li>
+            </ol>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
