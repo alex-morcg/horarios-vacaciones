@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.15)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.16)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.15)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.16)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2510,6 +2510,23 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
     return timeclockRecords.find(r => r.userCode === userCode && r.date === date);
   };
 
+  // Check if entry time deviates more than 20 minutes from scheduled time
+  const hasEntryDeviation = (user, record, date) => {
+    if (!record?.startTime || !user?.schedule) return false;
+    const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+    const dayMap = { 1: 'lunes', 2: 'martes', 3: 'miercoles', 4: 'jueves', 5: 'viernes' };
+    const dayKey = dayMap[dayOfWeek];
+    if (!dayKey || !user.schedule[dayKey]?.activo) return false;
+
+    const scheduledEntry = user.schedule[dayKey].entrada;
+    const [schedH, schedM] = scheduledEntry.split(':').map(Number);
+    const [actualH, actualM] = record.startTime.split(':').map(Number);
+    const schedMins = schedH * 60 + schedM;
+    const actualMins = actualH * 60 + actualM;
+    const diff = Math.abs(actualMins - schedMins);
+    return diff > 20;
+  };
+
   // Check if user has vacation/request on a specific date
   const getVacationInfo = (userCode, date) => {
     const req = requests?.find(r => {
@@ -2653,13 +2670,15 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
 
                     const handleClick = () => onCellClick && onCellClick(date, user.code);
                     const clickableClass = onCellClick ? 'cursor-pointer hover:bg-gray-100' : '';
+                    const deviation = hasEntryDeviation(user, record, date);
+                    const deviationClass = deviation && record?.endTime ? 'bg-red-100' : '';
 
                     return (
                       <React.Fragment key={`${user.code}-${date}`}>
                         <td
-                          className={`p-1 border text-center ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'} ${clickableClass}`}
+                          className={`p-1 border text-center ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'} ${clickableClass} ${deviationClass}`}
                           onClick={handleClick}
-                          title="Clic para ver registro"
+                          title={deviation ? 'Entrada desviada más de 20 min' : 'Clic para ver registro'}
                         >
                           {record?.endTime ? formatMinutes(workedMins) : (record?.startTime ? '...' : '-')}
                         </td>
