@@ -146,9 +146,10 @@ const VacationManager = () => {
 
   const calculateUserDays = (userCode) => {
     const user = users.find(u => u.code === userCode);
-    if (!user) return { total: 0, used: 0, pending: 0, waiting: 0, available: 0, carryOver: 0, usedOwn: 0, usedClosure: 0, usedTurno: 0 };
+    if (!user) return { total: 0, used: 0, pending: 0, waiting: 0, available: 0, carryOver: 0, usedOwn: 0, usedClosure: 0, usedTurno: 0, usedOther: 0 };
 
     const approved = requests.filter(r => r.userCode === userCode && r.status === 'approved' && r.type === 'vacation');
+    const approvedOther = requests.filter(r => r.userCode === userCode && r.status === 'approved' && r.type === 'other');
     const pending = requests.filter(r => r.userCode === userCode && r.status === 'pending' && r.type === 'vacation');
 
     // All holiday types that deduct from vacation balance
@@ -157,7 +158,7 @@ const VacationManager = () => {
     const turnoDays = companyHolidays.filter(h => h.holidayType === 'turno');
 
     // Count days from user's own vacation requests
-    let usedOwn = 0, usedTurno = 0, waiting = 0;
+    let usedOwn = 0, usedTurno = 0, usedOther = 0, waiting = 0;
 
     // Helper to get dates from a request (excluding weekends only - holidays count as used days)
     const getRequestDates = (r) => {
@@ -189,6 +190,12 @@ const VacationManager = () => {
       });
     });
 
+    // Count special days (type: 'other')
+    approvedOther.forEach(r => {
+      const dates = getRequestDates(r);
+      usedOther += dates.length;
+    });
+
     pending.forEach(r => {
       const dates = getRequestDates(r);
       dates.forEach(d => {
@@ -208,7 +215,7 @@ const VacationManager = () => {
 
     const used = usedOwn + usedClosure + usedTurno;
     const total = user.totalDays || 0, carryOver = user.carryOverDays || 0;
-    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno };
+    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno, usedOther };
   };
 
   // Firebase CRUD
@@ -236,7 +243,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.8)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -258,7 +265,7 @@ const VacationManager = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.7)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.8)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -926,12 +933,23 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
       <div className="space-y-4">
         <button onClick={() => setViewingUserHistory(null)} className="text-indigo-600">← Volver</button>
         <h2 className="text-2xl font-bold">{user?.name} {user?.lastName}</h2>
-        <div className="grid grid-cols-5 gap-4 bg-blue-50 p-4 rounded-lg">
-          <div><p className="text-sm text-gray-600">Totales</p><p className="text-xl font-bold text-blue-600">{d.total}</p></div>
-          <div><p className="text-sm text-gray-600">Sobrantes</p><p className="text-xl font-bold text-purple-600">{d.carryOver}</p></div>
-          <div><p className="text-sm text-gray-600">Usados</p><p className="text-xl font-bold text-red-600">{d.used}</p></div>
-          <div><p className="text-sm text-gray-600">En espera</p><p className="text-xl font-bold text-orange-600">{d.waiting}</p></div>
-          <div><p className="text-sm text-gray-600">Disponibles</p><p className="text-xl font-bold text-green-600">{d.available}</p></div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="grid grid-cols-5 gap-4">
+            <div><p className="text-sm text-gray-600">Totales</p><p className="text-xl font-bold text-blue-600">{d.total}</p></div>
+            <div><p className="text-sm text-gray-600">Sobrantes</p><p className="text-xl font-bold text-purple-600">{d.carryOver}</p></div>
+            <div><p className="text-sm text-gray-600">Usados</p><p className="text-xl font-bold text-red-600">{d.used}</p></div>
+            <div><p className="text-sm text-gray-600">En espera</p><p className="text-xl font-bold text-orange-600">{d.waiting}</p></div>
+            <div><p className="text-sm text-gray-600">Disponibles</p><p className="text-xl font-bold text-green-600">{d.available}</p></div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-blue-200">
+            <p className="text-sm text-gray-600 mb-1">Desglose de días usados:</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span>📅 Vacaciones propias: <strong>{d.usedOwn || 0}</strong></span>
+              <span>🏢 Días de cierre: <strong>{d.usedClosure || 0}</strong></span>
+              <span>🔄 Vacaciones en turno: <strong>{d.usedTurno || 0}</strong></span>
+              <span>⚠️ Días especiales: <strong>{d.usedOther || 0}</strong></span>
+            </div>
+          </div>
         </div>
         <div className="space-y-3">
           {userReqs.map(req => (
@@ -1645,6 +1663,7 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
               <span>📅 Vacaciones propias: <strong>{d.usedOwn || 0}</strong></span>
               <span>🏢 Días de cierre: <strong>{d.usedClosure || 0}</strong></span>
               <span>🔄 Vacaciones en turno: <strong>{d.usedTurno || 0}</strong></span>
+              <span>⚠️ Días especiales: <strong>{d.usedOther || 0}</strong></span>
             </div>
           </div>
         </div>
