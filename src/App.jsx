@@ -258,7 +258,7 @@ const VacationManager = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.5)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.6)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -764,19 +764,21 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                         onMouseEnter={() => userCount > 0 && setHoveredDay(dateStr)}
                         onMouseLeave={() => setHoveredDay(null)}
                       >
-                        <div className={`text-xs font-medium ${textClass} ${isToday ? 'bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center' : ''}`}>
-                          {date.getDate()}
-                        </div>
-
-                        {/* Holiday indicator - below day number */}
-                        {holiday && isCurrentYear && (
-                          <div className="flex flex-col items-center mt-0.5">
+                        <div className={`text-xs font-medium flex items-center gap-0.5 ${textClass}`}>
+                          <span className={`${isToday ? 'bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center' : ''}`}>
+                            {date.getDate()}
+                          </span>
+                          {holiday && isCurrentYear && (
                             <span className="text-[10px] leading-none">
                               {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
                             </span>
-                            <span className={`text-[7px] font-bold text-center leading-tight truncate max-w-full ${holiday.isTurno ? 'text-yellow-700' : holiday.isLocal ? 'text-red-700' : 'text-purple-700'}`}>
-                              {holiday.name}
-                            </span>
+                          )}
+                        </div>
+
+                        {/* Holiday name - below day number */}
+                        {holiday && isCurrentYear && (
+                          <div className={`text-[7px] font-bold text-center leading-tight truncate max-w-full ${holiday.isTurno ? 'text-yellow-700' : holiday.isLocal ? 'text-red-700' : 'text-purple-700'}`}>
+                            {holiday.name}
                           </div>
                         )}
 
