@@ -1441,10 +1441,50 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
 
   const conflicts = findConflicts();
 
+  // Check if user already has requests on the same dates
+  const findOwnOverlap = () => {
+    const requestDates = getRequestDates();
+    if (requestDates.length === 0) return [];
+
+    const userReqs = requests.filter(r =>
+      r.userCode === targetUserCode &&
+      (r.status === 'approved' || r.status === 'pending')
+    );
+
+    const overlappingDates = [];
+    userReqs.forEach(req => {
+      let reqDates = [];
+      if (req.isRange) {
+        let cur = new Date(req.startDate);
+        const end = new Date(req.endDate);
+        while (cur <= end) {
+          reqDates.push(cur.toISOString().split('T')[0]);
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else {
+        reqDates = req.dates || [];
+      }
+      requestDates.forEach(d => {
+        if (reqDates.includes(d) && !overlappingDates.includes(d)) {
+          overlappingDates.push(d);
+        }
+      });
+    });
+
+    return overlappingDates;
+  };
+
   const handleSubmit = async () => {
     if (requestType === 'range' && (!formData.startDate || !formData.endDate)) { showNotification('error', 'Selecciona fechas'); return; }
     if (requestType === 'individual' && formData.dates.length === 0) { showNotification('error', 'Añade fechas'); return; }
     if (currentUser.isAdmin && !selectedUserCode) { showNotification('error', 'Selecciona un usuario'); return; }
+
+    // Check for own overlapping dates
+    const ownOverlap = findOwnOverlap();
+    if (ownOverlap.length > 0) {
+      showNotification('error', `Ya tienes una solicitud para: ${ownOverlap.slice(0, 3).join(', ')}${ownOverlap.length > 3 ? '...' : ''}`);
+      return;
+    }
 
     const requestData = {
       userCode: targetUserCode,
