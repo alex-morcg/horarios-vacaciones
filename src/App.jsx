@@ -277,7 +277,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.26)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.27)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -312,7 +312,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.26)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.27)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2251,6 +2251,7 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
         holidays={holidays}
         deleteRequest={deleteRequest}
         addRequest={addRequest}
+        currentUser={currentUser}
       />
     );
   }
@@ -3079,7 +3080,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
 };
 
 // ==================== ADMIN VIEW ====================
-const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays, deleteRequest, addRequest }) => {
+const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays, deleteRequest, addRequest, currentUser }) => {
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [statsSubTab, setStatsSubTab] = useState('semanal');
   const [conflictsSubTab, setConflictsSubTab] = useState('conflictos');
@@ -3216,15 +3217,21 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
   const missingDays = getMissingDays();
 
   const handleAddVacationForDay = async (userCode, date, vacationType) => {
+    const now = new Date().toISOString();
     await addRequest({
       userCode,
       dates: [date],
       isRange: false,
+      startDate: null,
+      endDate: null,
       status: 'approved',
       type: vacationType,
-      createdAt: new Date().toISOString(),
-      approvedAt: new Date().toISOString(),
-      note: 'Añadido manualmente desde conflictos'
+      createdAt: now,
+      approvedAt: now,
+      approvedBy: currentUser.code,
+      approvedByName: currentUser.name,
+      createdByAdmin: currentUser.code,
+      comments: 'Añadido manualmente desde conflictos'
     });
     showNotification('success', vacationType === 'other' ? 'Día especial añadido' : 'Día de vacaciones añadido');
   };
