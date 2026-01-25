@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.14)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.15)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.14)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.15)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -949,13 +949,42 @@ const DepartmentsManagement = ({ departments, addDepartment, updateDepartment, d
 const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotification, calculateUserDays, requests, viewingUserHistory, setViewingUserHistory, departments, getUserDepartments }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [formData, setFormData] = useState({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false });
+  const defaultSchedule = {
+    lunes: { entrada: '09:00', salida: '18:00', activo: true },
+    martes: { entrada: '09:00', salida: '18:00', activo: true },
+    miercoles: { entrada: '09:00', salida: '18:00', activo: true },
+    jueves: { entrada: '09:00', salida: '18:00', activo: true },
+    viernes: { entrada: '09:00', salida: '18:00', activo: true }
+  };
+  const [formData, setFormData] = useState({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, schedule: defaultSchedule });
+
+  const calcDayHours = (day) => {
+    if (!day.activo) return 0;
+    const [eh, em] = day.entrada.split(':').map(Number);
+    const [sh, sm] = day.salida.split(':').map(Number);
+    const mins = (sh * 60 + sm) - (eh * 60 + em);
+    return mins > 0 ? mins / 60 : 0;
+  };
+
+  const calcWeeklyHours = (schedule) => {
+    return Object.values(schedule).reduce((sum, day) => sum + calcDayHours(day), 0);
+  };
+
+  const updateScheduleDay = (dayName, field, value) => {
+    setFormData(p => ({
+      ...p,
+      schedule: {
+        ...p.schedule,
+        [dayName]: { ...p.schedule[dayName], [field]: value }
+      }
+    }));
+  };
 
   const handleSubmit = async () => {
     if (!formData.code || !formData.name || !formData.lastName || formData.departments.length === 0) { showNotification('error', 'Completa todos los campos'); return; }
     if (editingUser) await updateUser(editingUser.id, formData);
     else { if (users.some(u => u.code === formData.code)) { showNotification('error', 'Código duplicado'); return; } await addUser(formData); }
-    setShowForm(false); setEditingUser(null); setFormData({ code: '', name: '', lastName: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false });
+    setShowForm(false); setEditingUser(null); setFormData({ code: '', name: '', lastName: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, schedule: defaultSchedule });
   };
 
   const toggleDept = (name) => setFormData(p => ({ ...p, departments: p.departments.includes(name) ? p.departments.filter(d => d !== name) : [...p.departments, name] }));
@@ -1027,6 +1056,69 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
               ))}
             </div>
           </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium">Horario Semanal</label>
+              <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+                Total: {calcWeeklyHours(formData.schedule).toFixed(1)}h / semana
+              </span>
+            </div>
+            <div className="bg-white border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Día</th>
+                    <th className="px-3 py-2 text-center">Activo</th>
+                    <th className="px-3 py-2 text-center">Entrada</th>
+                    <th className="px-3 py-2 text-center">Salida</th>
+                    <th className="px-3 py-2 text-center">Horas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { key: 'lunes', label: 'Lunes' },
+                    { key: 'martes', label: 'Martes' },
+                    { key: 'miercoles', label: 'Miércoles' },
+                    { key: 'jueves', label: 'Jueves' },
+                    { key: 'viernes', label: 'Viernes' }
+                  ].map(({ key, label }) => (
+                    <tr key={key} className={`border-t ${!formData.schedule[key].activo ? 'bg-gray-50 opacity-60' : ''}`}>
+                      <td className="px-3 py-2 font-medium">{label}</td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.schedule[key].activo}
+                          onChange={(e) => updateScheduleDay(key, 'activo', e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="time"
+                          value={formData.schedule[key].entrada}
+                          onChange={(e) => updateScheduleDay(key, 'entrada', e.target.value)}
+                          disabled={!formData.schedule[key].activo}
+                          className="px-2 py-1 border rounded text-center disabled:bg-gray-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="time"
+                          value={formData.schedule[key].salida}
+                          onChange={(e) => updateScheduleDay(key, 'salida', e.target.value)}
+                          disabled={!formData.schedule[key].activo}
+                          className="px-2 py-1 border rounded text-center disabled:bg-gray-100"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center font-medium text-indigo-600">
+                        {formData.schedule[key].activo ? calcDayHours(formData.schedule[key]).toFixed(1) + 'h' : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
           <label className="flex items-center space-x-2"><input type="checkbox" checked={formData.isAdmin} onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })} className="w-4 h-4" /><span>Es Administrador</span></label>
           <div className="flex space-x-2">
             <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">{editingUser ? 'Actualizar' : 'Crear'}</button>
@@ -1036,7 +1128,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100"><tr><th className="px-4 py-3 text-left">Código</th><th className="px-4 py-3 text-left">Nombre</th><th className="px-4 py-3 text-left">Teléfono</th><th className="px-4 py-3 text-left">Depts</th><th className="px-4 py-3 text-left">Usados</th><th className="px-4 py-3 text-left">Disp.</th><th className="px-4 py-3 text-left">Acciones</th></tr></thead>
+          <thead className="bg-gray-100"><tr><th className="px-4 py-3 text-left">Código</th><th className="px-4 py-3 text-left">Nombre</th><th className="px-4 py-3 text-left">Teléfono</th><th className="px-4 py-3 text-left">Depts</th><th className="px-4 py-3 text-left">H/sem</th><th className="px-4 py-3 text-left">Usados</th><th className="px-4 py-3 text-left">Disp.</th><th className="px-4 py-3 text-left">Acciones</th></tr></thead>
           <tbody>
             {users.map(user => {
               const d = calculateUserDays(user.code);
@@ -1046,12 +1138,13 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
                   <td className="px-4 py-3">{user.name} {user.lastName}</td>
                   <td className="px-4 py-3 text-gray-600">{user.phone || '-'}</td>
                   <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{getUserDepartments(user).map(d => <span key={d} className="text-xs px-2 py-1 rounded bg-gray-100">{d}</span>)}</div></td>
+                  <td className="px-4 py-3 text-indigo-600 font-semibold">{user.schedule ? calcWeeklyHours(user.schedule).toFixed(0) + 'h' : '40h'}</td>
                   <td className="px-4 py-3 text-blue-600 font-semibold">{d.used}</td>
                   <td className="px-4 py-3 text-green-600 font-semibold">{d.available}</td>
                   <td className="px-4 py-3">
                     <div className="flex space-x-2">
                       <button onClick={() => setViewingUserHistory(user.code)} className="text-green-600"><FileText className="w-5 h-5" /></button>
-                      <button onClick={() => { setEditingUser(user); setFormData({ ...user, departments: getUserDepartments(user) }); setShowForm(true); }} className="text-blue-600"><Eye className="w-5 h-5" /></button>
+                      <button onClick={() => { setEditingUser(user); setFormData({ ...user, departments: getUserDepartments(user), schedule: user.schedule || defaultSchedule }); setShowForm(true); }} className="text-blue-600"><Eye className="w-5 h-5" /></button>
                       <button onClick={() => deleteUser(user.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button>
                     </div>
                   </td>
