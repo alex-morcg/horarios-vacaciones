@@ -2408,14 +2408,19 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
   // Calculate stats
   const getWeekStats = () => {
     const today = new Date();
+    const dayOfWeek = today.getDay();
+    // Adjust for Sunday (0) - go back to previous Monday
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay() + 1);
+    weekStart.setDate(today.getDate() - daysToMonday);
+
     const weekDates = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
       weekDates.push(d.toISOString().split('T')[0]);
     }
+    console.log('Week dates:', weekDates);
 
     return users.filter(u => !u.isAdmin).map(user => {
       const userRecords = timeclockRecords.filter(r => r.userCode === user.code && weekDates.includes(r.date));
