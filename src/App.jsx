@@ -71,7 +71,7 @@ const VacationManager = () => {
   const showNotification = (type, message) => { setNotification({ type, message }); setTimeout(() => setNotification(null), 3000); };
   const handleLogout = () => { setCurrentUser(null); setLoginCode(''); setActiveTab('calendar'); };
   const isWeekend = (date) => { const d = new Date(date).getDay(); return d === 0 || d === 6; };
-  const isHoliday = (date) => companyHolidays.some(h => h.date === date);
+  const isHoliday = (date) => companyHolidays.some(h => h.date === date && h.isLocal === true);
 
   const handleLogin = () => {
     const user = users.find(u => u.code === loginCode);
@@ -103,9 +103,9 @@ const VacationManager = () => {
     const turnoDays = companyHolidays.filter(h => h.holidayType === 'turno');
 
     // Count days from user's own vacation requests
-    let usedOwn = 0, waiting = 0;
+    let usedOwn = 0, usedTurno = 0, waiting = 0;
 
-    // Helper to get dates from a request
+    // Helper to get dates from a request (excluding weekends and local holidays)
     const getRequestDates = (r) => {
       if (r.isRange) {
         const dates = [];
@@ -122,7 +122,14 @@ const VacationManager = () => {
     };
 
     approved.forEach(r => {
-      usedOwn += getRequestDates(r).length;
+      const dates = getRequestDates(r);
+      dates.forEach(d => {
+        if (turnoDays.some(t => t.date === d)) {
+          usedTurno++;
+        } else {
+          usedOwn++;
+        }
+      });
     });
 
     pending.forEach(r => {
@@ -137,15 +144,9 @@ const VacationManager = () => {
       return hDate.getFullYear() === currentYear && !isWeekend(h.date);
     }).length;
 
-    // Count turno days (these are also deducted from everyone's balance)
-    const usedTurnoGlobal = turnoDays.filter(h => {
-      const hDate = new Date(h.date);
-      return hDate.getFullYear() === currentYear && !isWeekend(h.date);
-    }).length;
-
-    const used = usedOwn + usedClosure + usedTurnoGlobal;
+    const used = usedOwn + usedClosure + usedTurno;
     const total = user.totalDays || 0, carryOver = user.carryOverDays || 0;
-    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno: usedTurnoGlobal };
+    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno };
   };
 
   // Firebase CRUD
