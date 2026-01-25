@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.19)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.20)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.19)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.20)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2212,12 +2212,15 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
         users={users}
         timeclockSettings={timeclockSettings}
         saveTimeclockSettings={saveTimeclockSettings}
+        addTimeclockRecord={addTimeclockRecord}
         updateTimeclockRecord={updateTimeclockRecord}
         deleteTimeclockRecord={deleteTimeclockRecord}
         showNotification={showNotification}
         calculateWorkedTime={calculateWorkedTime}
         requests={requests}
         holidays={holidays}
+        deleteRequest={deleteRequest}
+        addRequest={addRequest}
       />
     );
   }
@@ -3046,9 +3049,10 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
 };
 
 // ==================== ADMIN VIEW ====================
-const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays }) => {
+const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays, deleteRequest, addRequest }) => {
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [statsSubTab, setStatsSubTab] = useState('semanal');
+  const [conflictsSubTab, setConflictsSubTab] = useState('conflictos');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
   const [editingRecord, setEditingRecord] = useState(null);
@@ -3110,6 +3114,109 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
   };
 
   const conflicts = getConflicts();
+
+  // Detect days without any record (no vacation, no timeclock)
+  const getMissingDays = () => {
+    const missing = [];
+    const today = new Date();
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+
+    // Check last 60 days only for performance
+    const checkFrom = new Date(today);
+    checkFrom.setDate(checkFrom.getDate() - 60);
+
+    const approvedVacations = requests?.filter(r => r.status === 'approved') || [];
+
+    users.filter(u => !u.isAdmin).forEach(user => {
+      // Get all vacation dates for this user
+      const userVacationDates = new Set();
+      approvedVacations.filter(v => v.userCode === user.code).forEach(vacation => {
+        if (vacation.isRange) {
+          let cur = new Date(vacation.startDate);
+          const end = new Date(vacation.endDate);
+          while (cur <= end) {
+            userVacationDates.add(cur.toISOString().split('T')[0]);
+            cur.setDate(cur.getDate() + 1);
+          }
+        } else {
+          (vacation.dates || []).forEach(d => userVacationDates.add(d));
+        }
+      });
+
+      // Check each day
+      let checkDate = new Date(checkFrom);
+      while (checkDate < today) {
+        const dateStr = checkDate.toISOString().split('T')[0];
+        const dayOfWeek = checkDate.getDay();
+
+        // Skip weekends
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          // Check if it's a holiday
+          const isHoliday = holidays?.some(h => h.date === dateStr);
+
+          if (!isHoliday) {
+            const hasVacation = userVacationDates.has(dateStr);
+            const hasTimeclock = timeclockRecords.some(r => r.userCode === user.code && r.date === dateStr);
+
+            if (!hasVacation && !hasTimeclock) {
+              missing.push({
+                id: `${user.code}-${dateStr}`,
+                user,
+                date: dateStr
+              });
+            }
+          }
+        }
+
+        checkDate.setDate(checkDate.getDate() + 1);
+      }
+    });
+
+    return missing.sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  const missingDays = getMissingDays();
+
+  const handleAddVacationForDay = async (userCode, date) => {
+    await addRequest({
+      userCode,
+      dates: [date],
+      isRange: false,
+      status: 'approved',
+      type: 'vacation',
+      createdAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+      note: 'Añadido manualmente desde conflictos'
+    });
+    showNotification('success', 'Día de vacaciones añadido');
+  };
+
+  const handleAddTimeclockForDay = async (userCode, date) => {
+    const user = users.find(u => u.code === userCode);
+    const defaultSchedule = {
+      lunes: { entrada: '08:00', salida: '17:00' },
+      martes: { entrada: '08:00', salida: '17:00' },
+      miercoles: { entrada: '08:00', salida: '17:00' },
+      jueves: { entrada: '08:00', salida: '17:00' },
+      viernes: { entrada: '08:00', salida: '15:00' }
+    };
+    const schedule = user?.schedule || defaultSchedule;
+    const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+    const dayMap = { 1: 'lunes', 2: 'martes', 3: 'miercoles', 4: 'jueves', 5: 'viernes' };
+    const dayKey = dayMap[dayOfWeek];
+    const daySchedule = schedule[dayKey] || { entrada: '08:00', salida: '17:00' };
+
+    await addTimeclockRecord({
+      userCode,
+      date,
+      startTime: daySchedule.entrada,
+      endTime: daySchedule.salida,
+      breaks: [],
+      createdAt: new Date().toISOString(),
+      manualEntry: true
+    });
+    showNotification('success', 'Fichaje añadido manualmente');
+  };
 
   const handleSaveGps = async () => {
     if (!gpsForm.latitude || !gpsForm.longitude) {
@@ -3179,9 +3286,9 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
           className={`px-4 py-2 rounded-t-lg font-medium relative ${activeAdminTab === 'conflictos' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
           Conflictos
-          {conflicts.length > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-              {conflicts.length}
+          {(conflicts.length + missingDays.length) > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center">
+              {conflicts.length + missingDays.length}
             </span>
           )}
         </button>
@@ -3545,54 +3652,144 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
       {/* Conflicts Tab */}
       {activeAdminTab === 'conflictos' && (
         <div className="space-y-4">
-          {conflicts.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="text-4xl mb-2">✅</div>
-              <p>No hay conflictos detectados</p>
-            </div>
-          ) : (
+          {/* Sub-tabs */}
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setConflictsSubTab('conflictos')}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors relative ${conflictsSubTab === 'conflictos' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+            >
+              Conflictos
+              {conflicts.length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                  {conflicts.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setConflictsSubTab('sinRegistro')}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors relative ${conflictsSubTab === 'sinRegistro' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+            >
+              Sin registro
+              {missingDays.length > 0 && (
+                <span className="ml-2 bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                  {missingDays.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Conflicts sub-tab */}
+          {conflictsSubTab === 'conflictos' && (
             <>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-yellow-800 text-sm">
-                  <strong>⚠️ {conflicts.length} conflicto{conflicts.length > 1 ? 's' : ''} detectado{conflicts.length > 1 ? 's' : ''}:</strong> Hay días con vacaciones aprobadas que también tienen registros de fichaje.
-                </p>
-              </div>
-              <div className="space-y-3">
-                {conflicts.map(conflict => {
-                  const worked = calculateWorkedTime(conflict.record);
-                  return (
-                    <div key={conflict.id} className="bg-white border border-red-200 rounded-lg p-4 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-semibold text-gray-800">
-                            {conflict.user?.name} {conflict.user?.lastName}
-                          </div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            📅 <strong>{new Date(conflict.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
-                          </div>
-                          <div className="mt-2 space-y-1 text-sm">
-                            <div className="text-green-700">
-                              ✅ Vacaciones aprobadas: {conflict.vacation.type === 'other' ? 'Día especial' : 'Vacaciones'}
+              {conflicts.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-4xl mb-2">✅</div>
+                  <p>No hay conflictos detectados</p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>⚠️ {conflicts.length} conflicto{conflicts.length > 1 ? 's' : ''} detectado{conflicts.length > 1 ? 's' : ''}:</strong> Hay días con vacaciones aprobadas que también tienen registros de fichaje.
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {conflicts.map(conflict => {
+                      const worked = calculateWorkedTime(conflict.record);
+                      return (
+                        <div key={conflict.id} className="bg-white border border-red-200 rounded-lg p-4 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-semibold text-gray-800">
+                                {conflict.user?.name} {conflict.user?.lastName}
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                📅 <strong>{new Date(conflict.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                              </div>
+                              <div className="mt-2 space-y-1 text-sm">
+                                <div className="text-green-700">
+                                  ✅ Vacaciones aprobadas: {conflict.vacation.type === 'other' ? 'Día especial' : 'Vacaciones'}
+                                </div>
+                                <div className="text-blue-700">
+                                  🕐 Fichaje: {conflict.record.startTime} - {conflict.record.endTime || 'En curso'} ({worked.formatted})
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-blue-700">
-                              🕐 Fichaje: {conflict.record.startTime} - {conflict.record.endTime || 'En curso'} ({worked.formatted})
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={() => deleteTimeclockRecord(conflict.record.id)}
+                                className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium"
+                                title="Eliminar el fichaje"
+                              >
+                                🗑️ Eliminar fichaje
+                              </button>
+                              <button
+                                onClick={() => { if (window.confirm('¿Eliminar este día de vacaciones? Se devolverá al contador del usuario.')) deleteRequest(conflict.vacation.id); }}
+                                className="px-3 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 text-sm font-medium"
+                                title="Eliminar las vacaciones"
+                              >
+                                🗑️ Eliminar vacaciones
+                              </button>
                             </div>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <button
-                            onClick={() => deleteTimeclockRecord(conflict.record.id)}
-                            className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium"
-                            title="Eliminar el fichaje"
-                          >
-                            🗑️ Eliminar fichaje
-                          </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Missing days sub-tab */}
+          {conflictsSubTab === 'sinRegistro' && (
+            <>
+              {missingDays.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-4xl mb-2">✅</div>
+                  <p>Todos los días laborables tienen registro</p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <p className="text-orange-800 text-sm">
+                      <strong>⚠️ {missingDays.length} día{missingDays.length > 1 ? 's' : ''} sin registro:</strong> Días laborables sin vacaciones ni fichaje (últimos 60 días).
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {missingDays.map(item => (
+                      <div key={item.id} className="bg-white border border-orange-200 rounded-lg p-4 shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-semibold text-gray-800">
+                              {item.user?.name} {item.user?.lastName}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              📅 <strong>{new Date(item.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => handleAddVacationForDay(item.user.code, item.date)}
+                              className="px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm font-medium"
+                              title="Añadir día de vacaciones"
+                            >
+                              🏖️ Añadir vacaciones
+                            </button>
+                            <button
+                              onClick={() => handleAddTimeclockForDay(item.user.code, item.date)}
+                              className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium"
+                              title="Añadir fichaje con horario del usuario"
+                            >
+                              🕐 Añadir fichaje
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
