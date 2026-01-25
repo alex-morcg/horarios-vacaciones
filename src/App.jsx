@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.17)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.18)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.17)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.18)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -3056,6 +3056,45 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
     }
   }, [timeclockSettings]);
 
+  // Detect conflicts: vacation day with timeclock record
+  const getConflicts = () => {
+    const conflicts = [];
+    const approvedVacations = requests?.filter(r => r.status === 'approved') || [];
+
+    approvedVacations.forEach(vacation => {
+      const user = users.find(u => u.code === vacation.userCode);
+      let vacationDates = [];
+
+      if (vacation.isRange) {
+        let cur = new Date(vacation.startDate);
+        const end = new Date(vacation.endDate);
+        while (cur <= end) {
+          vacationDates.push(cur.toISOString().split('T')[0]);
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else {
+        vacationDates = vacation.dates || [];
+      }
+
+      vacationDates.forEach(date => {
+        const record = timeclockRecords.find(r => r.userCode === vacation.userCode && r.date === date);
+        if (record) {
+          conflicts.push({
+            id: `${vacation.id}-${record.id}`,
+            user,
+            date,
+            vacation,
+            record
+          });
+        }
+      });
+    });
+
+    return conflicts.sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  const conflicts = getConflicts();
+
   const handleSaveGps = async () => {
     if (!gpsForm.latitude || !gpsForm.longitude) {
       showNotification('error', 'Introduce las coordenadas');
@@ -3118,6 +3157,17 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
           className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'configuracion' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
           Configuración GPS
+        </button>
+        <button
+          onClick={() => setActiveAdminTab('conflictos')}
+          className={`px-4 py-2 rounded-t-lg font-medium relative ${activeAdminTab === 'conflictos' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Conflictos
+          {conflicts.length > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {conflicts.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -3467,6 +3517,62 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
               <li>Copia las coordenadas que aparecen (primer número es latitud, segundo longitud)</li>
             </ol>
           </div>
+        </div>
+      )}
+
+      {/* Conflicts Tab */}
+      {activeAdminTab === 'conflictos' && (
+        <div className="space-y-4">
+          {conflicts.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="text-4xl mb-2">✅</div>
+              <p>No hay conflictos detectados</p>
+            </div>
+          ) : (
+            <>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800 text-sm">
+                  <strong>⚠️ {conflicts.length} conflicto{conflicts.length > 1 ? 's' : ''} detectado{conflicts.length > 1 ? 's' : ''}:</strong> Hay días con vacaciones aprobadas que también tienen registros de fichaje.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {conflicts.map(conflict => {
+                  const worked = calculateWorkedTime(conflict.record);
+                  return (
+                    <div key={conflict.id} className="bg-white border border-red-200 rounded-lg p-4 shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-semibold text-gray-800">
+                            {conflict.user?.name} {conflict.user?.lastName}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            📅 <strong>{new Date(conflict.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                          </div>
+                          <div className="mt-2 space-y-1 text-sm">
+                            <div className="text-green-700">
+                              ✅ Vacaciones aprobadas: {conflict.vacation.type === 'other' ? 'Día especial' : 'Vacaciones'}
+                            </div>
+                            <div className="text-blue-700">
+                              🕐 Fichaje: {conflict.record.startTime} - {conflict.record.endTime || 'En curso'} ({worked.formatted})
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => deleteTimeclockRecord(conflict.record.id)}
+                            className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium"
+                            title="Eliminar el fichaje"
+                          >
+                            🗑️ Eliminar fichaje
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
