@@ -258,7 +258,7 @@ const VacationManager = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.1)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.2)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -803,7 +803,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                             <div className="space-y-1">
                               {usersOnDay.map((item, idx) => (
                                 <div key={idx} className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(item.depts)}`}>
-                                  <span>{item.request.status === 'approved' ? '✅' : '⏳'}</span>
+                                  <span>{item.request.status !== 'approved' ? '⏳' : item.request.type === 'other' ? '⚠️' : item.request.type === 'turno' ? '🔄' : '✅'}</span>
                                   <span className="font-medium">{item.user?.name} {item.user?.lastName}</span>
                                 </div>
                               ))}
