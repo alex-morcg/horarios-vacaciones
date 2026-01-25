@@ -169,10 +169,10 @@ const VacationManager = () => {
           <div className="p-6">
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
             {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} />}
-            {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} />}
+            {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
-            {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} />}
+            {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} />}
           </div>
         </div>
       </div>
@@ -783,9 +783,74 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
   );
 };
 
-const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, getBusinessDays, currentUser, getUserDepartments, showNotification }) => {
+const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, getBusinessDays, currentUser, getUserDepartments, showNotification, isWeekend, isHoliday }) => {
   const pending = requests.filter(r => r.status === 'pending');
   const getReqDays = (r) => r.isRange ? getBusinessDays(r.startDate, r.endDate) : (r.dates?.length || 0);
+
+  // Find conflicts for a specific request
+  const findConflictsForRequest = (req) => {
+    const reqUser = users.find(u => u.code === req.userCode);
+    const reqDepts = getUserDepartments ? getUserDepartments(reqUser) : (reqUser?.departments || []);
+    if (reqDepts.length === 0) return [];
+
+    // Get dates for this request
+    let reqDates = [];
+    if (req.isRange) {
+      let cur = new Date(req.startDate);
+      const end = new Date(req.endDate);
+      while (cur <= end) {
+        const dateStr = cur.toISOString().split('T')[0];
+        if (!isWeekend(dateStr) && !isHoliday(dateStr)) reqDates.push(dateStr);
+        cur.setDate(cur.getDate() + 1);
+      }
+    } else {
+      reqDates = (req.dates || []).filter(d => !isWeekend(d) && !isHoliday(d));
+    }
+
+    // Find coworkers in the same department(s)
+    const coworkers = users.filter(u => {
+      if (u.code === req.userCode) return false;
+      const userDepts = getUserDepartments ? getUserDepartments(u) : (u.departments || []);
+      return userDepts.some(d => reqDepts.includes(d));
+    });
+
+    const conflicts = [];
+    coworkers.forEach(coworker => {
+      const coworkerReqs = requests.filter(r =>
+        r.userCode === coworker.code &&
+        r.id !== req.id &&
+        (r.status === 'approved' || r.status === 'pending')
+      );
+
+      coworkerReqs.forEach(coworkerReq => {
+        let coworkerDates = [];
+        if (coworkerReq.isRange) {
+          let cur = new Date(coworkerReq.startDate);
+          const end = new Date(coworkerReq.endDate);
+          while (cur <= end) {
+            coworkerDates.push(cur.toISOString().split('T')[0]);
+            cur.setDate(cur.getDate() + 1);
+          }
+        } else {
+          coworkerDates = coworkerReq.dates || [];
+        }
+
+        const overlappingDates = reqDates.filter(d => coworkerDates.includes(d));
+        if (overlappingDates.length > 0) {
+          const coworkerDepts = getUserDepartments ? getUserDepartments(coworker) : (coworker.departments || []);
+          const sharedDepts = coworkerDepts.filter(d => reqDepts.includes(d));
+          conflicts.push({
+            user: coworker,
+            dates: overlappingDates,
+            status: coworkerReq.status,
+            sharedDepts
+          });
+        }
+      });
+    });
+
+    return conflicts;
+  };
 
   return (
     <div className="space-y-4">
@@ -793,16 +858,32 @@ const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, ge
       {pending.map(req => {
         const user = users.find(u => u.code === req.userCode);
         const d = calculateUserDays(req.userCode);
+        const conflicts = findConflictsForRequest(req);
         return (
           <div key={req.id} className="border rounded-lg p-4 bg-yellow-50">
             <div className="flex justify-between items-start flex-wrap gap-4">
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2"><span className="text-xl">⏳</span><h3 className="text-lg font-semibold">{user?.name} {user?.lastName}</h3></div>
                 <div className="text-sm text-gray-700">
                   {req.isRange ? <p><strong>Rango:</strong> {req.startDate} al {req.endDate} ({getReqDays(req)} días)</p> : <p><strong>Fechas:</strong> {req.dates?.join(', ')}</p>}
                   {req.comments && <p><strong>Comentarios:</strong> {req.comments}</p>}
                   <p><strong>Saldo disponible:</strong> {d.available} días</p>
                 </div>
+                {conflicts.length > 0 && (
+                  <div className="mt-3 text-sm bg-orange-50 border border-orange-200 p-3 rounded">
+                    <div className="font-semibold text-orange-700 mb-2">⚠️ Conflictos con compañeros de departamento:</div>
+                    <div className="space-y-1">
+                      {conflicts.map((c, idx) => (
+                        <div key={idx} className="text-orange-600">
+                          <span className="font-medium">{c.user.name} {c.user.lastName}</span>
+                          <span className="text-gray-500"> ({c.sharedDepts.join(', ')})</span>
+                          <span> - {c.status === 'approved' ? '✅ Aprobado' : '⏳ Pendiente'}</span>
+                          <span className="text-gray-500"> - {c.dates.length} día(s): {c.dates.slice(0, 3).join(', ')}{c.dates.length > 3 ? '...' : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex space-x-2">
                 <button onClick={async () => { await updateRequest(req.id, { status: 'approved', approvedBy: currentUser.code, approvedByName: currentUser.name, approvedAt: new Date().toISOString() }); showNotification('success', 'Aprobada'); }} className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded"><Check className="w-4 h-4" /><span>Aprobar</span></button>
@@ -853,7 +934,7 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
   );
 };
 
-const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculateUserDays, isWeekend, isHoliday, getBusinessDays, showNotification, users = [] }) => {
+const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculateUserDays, isWeekend, isHoliday, getBusinessDays, showNotification, users = [], departments = [], getUserDepartments }) => {
   const [showForm, setShowForm] = useState(false);
   const [requestType, setRequestType] = useState('range');
   const [selectedUserCode, setSelectedUserCode] = useState(currentUser.code);
@@ -864,6 +945,77 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
   const myReqs = requests.filter(r => r.userCode === targetUserCode).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const statusEmojis = { pending: '⏳', approved: '✅', denied: '❌' };
   const getTypeEmoji = (req) => req.type === 'other' ? '⚠️' : statusEmojis[req.status];
+
+  // Get dates for the current request being created
+  const getRequestDates = () => {
+    if (requestType === 'range' && formData.startDate && formData.endDate) {
+      const dates = [];
+      let cur = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      while (cur <= end) {
+        const dateStr = cur.toISOString().split('T')[0];
+        if (!isWeekend(dateStr) && !isHoliday(dateStr)) dates.push(dateStr);
+        cur.setDate(cur.getDate() + 1);
+      }
+      return dates;
+    }
+    return formData.dates.filter(d => !isWeekend(d) && !isHoliday(d));
+  };
+
+  // Find conflicts with coworkers in the same department(s)
+  const findConflicts = () => {
+    const requestDates = getRequestDates();
+    if (requestDates.length === 0) return [];
+
+    const targetUser = users.find(u => u.code === targetUserCode);
+    const targetDepts = getUserDepartments ? getUserDepartments(targetUser) : (targetUser?.departments || []);
+    if (targetDepts.length === 0) return [];
+
+    // Find coworkers in the same department(s)
+    const coworkers = users.filter(u => {
+      if (u.code === targetUserCode) return false;
+      const userDepts = getUserDepartments ? getUserDepartments(u) : (u.departments || []);
+      return userDepts.some(d => targetDepts.includes(d));
+    });
+
+    const conflicts = [];
+    coworkers.forEach(coworker => {
+      const coworkerReqs = requests.filter(r =>
+        r.userCode === coworker.code &&
+        (r.status === 'approved' || r.status === 'pending')
+      );
+
+      coworkerReqs.forEach(req => {
+        let reqDates = [];
+        if (req.isRange) {
+          let cur = new Date(req.startDate);
+          const end = new Date(req.endDate);
+          while (cur <= end) {
+            reqDates.push(cur.toISOString().split('T')[0]);
+            cur.setDate(cur.getDate() + 1);
+          }
+        } else {
+          reqDates = req.dates || [];
+        }
+
+        const overlappingDates = requestDates.filter(d => reqDates.includes(d));
+        if (overlappingDates.length > 0) {
+          const coworkerDepts = getUserDepartments ? getUserDepartments(coworker) : (coworker.departments || []);
+          const sharedDepts = coworkerDepts.filter(d => targetDepts.includes(d));
+          conflicts.push({
+            user: coworker,
+            dates: overlappingDates,
+            status: req.status,
+            sharedDepts
+          });
+        }
+      });
+    });
+
+    return conflicts;
+  };
+
+  const conflicts = findConflicts();
 
   const handleSubmit = async () => {
     if (requestType === 'range' && (!formData.startDate || !formData.endDate)) { showNotification('error', 'Selecciona fechas'); return; }
@@ -952,6 +1104,21 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
           <textarea value={formData.comments} onChange={(e) => setFormData({ ...formData, comments: e.target.value })} className="w-full px-3 py-2 border rounded" rows="2" placeholder="Comentarios" />
           {currentUser.isAdmin && formData.type === 'other' && (
             <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">⚠️ Los días de tipo "Otros" se aprueban automáticamente y no restan del saldo de vacaciones.</div>
+          )}
+          {conflicts.length > 0 && (
+            <div className="text-sm bg-orange-50 border border-orange-200 p-3 rounded">
+              <div className="font-semibold text-orange-700 mb-2">⚠️ Conflictos detectados con compañeros de departamento:</div>
+              <div className="space-y-1">
+                {conflicts.map((c, idx) => (
+                  <div key={idx} className="text-orange-600">
+                    <span className="font-medium">{c.user.name} {c.user.lastName}</span>
+                    <span className="text-gray-500"> ({c.sharedDepts.join(', ')})</span>
+                    <span> - {c.status === 'approved' ? '✅ Aprobado' : '⏳ Pendiente'}</span>
+                    <span className="text-gray-500"> - {c.dates.length} día(s): {c.dates.slice(0, 3).join(', ')}{c.dates.length > 3 ? '...' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           <div className="flex space-x-2">
             <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">Enviar</button>
