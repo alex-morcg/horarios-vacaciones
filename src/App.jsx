@@ -1795,7 +1795,7 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
         )}
         {reqTab === 'past' && (
           <>
-            {pastReqs.map(req => renderRequest(req, false))}
+            {pastReqs.map(req => renderRequest(req, currentUser.isAdmin))}
             {pastReqs.length === 0 && <div className="text-center py-12 text-gray-500">Sin historial</div>}
           </>
         )}
