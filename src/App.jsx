@@ -98,14 +98,15 @@ const VacationManager = () => {
     const approved = requests.filter(r => r.userCode === userCode && r.status === 'approved' && r.type === 'vacation');
     const pending = requests.filter(r => r.userCode === userCode && r.status === 'pending' && r.type === 'vacation');
 
-    // Get closure days (company closures that count against vacation)
-    const closureDays = companyHolidays.filter(h => h.isLocal === false && h.holidayType !== 'turno');
+    // All holiday types that deduct from vacation balance
+    const localHolidays = companyHolidays.filter(h => h.isLocal === true || h.holidayType === 'local');
+    const closureDays = companyHolidays.filter(h => h.isLocal === false && h.holidayType === 'closure');
     const turnoDays = companyHolidays.filter(h => h.holidayType === 'turno');
 
     // Count days from user's own vacation requests
     let usedOwn = 0, usedTurno = 0, waiting = 0;
 
-    // Helper to get dates from a request (excluding weekends and local holidays)
+    // Helper to get dates from a request (excluding weekends only - holidays count as used days)
     const getRequestDates = (r) => {
       if (r.isRange) {
         const dates = [];
@@ -113,18 +114,21 @@ const VacationManager = () => {
         const end = new Date(r.endDate);
         while (cur <= end) {
           const dateStr = cur.toISOString().split('T')[0];
-          if (!isWeekend(dateStr) && !isHoliday(dateStr)) dates.push(dateStr);
+          if (!isWeekend(dateStr)) dates.push(dateStr);
           cur.setDate(cur.getDate() + 1);
         }
         return dates;
       }
-      return r.dates?.filter(d => !isWeekend(d) && !isHoliday(d)) || [];
+      return r.dates?.filter(d => !isWeekend(d)) || [];
     };
 
     approved.forEach(r => {
       const dates = getRequestDates(r);
       dates.forEach(d => {
-        if (turnoDays.some(t => t.date === d)) {
+        // Don't count if it's a local holiday or closure day (already counted globally)
+        if (localHolidays.some(h => h.date === d) || closureDays.some(h => h.date === d)) {
+          // Skip - this day is already counted in usedClosure
+        } else if (turnoDays.some(t => t.date === d)) {
           usedTurno++;
         } else {
           usedOwn++;
@@ -133,13 +137,18 @@ const VacationManager = () => {
     });
 
     pending.forEach(r => {
-      waiting += getRequestDates(r).length;
+      const dates = getRequestDates(r);
+      dates.forEach(d => {
+        if (!localHolidays.some(h => h.date === d) && !closureDays.some(h => h.date === d)) {
+          waiting++;
+        }
+      });
     });
 
-    // Count closure days (these are deducted from everyone's balance)
+    // Count closure days (local holidays + closure days - deducted from everyone's balance)
     const today = new Date();
     const currentYear = today.getFullYear();
-    const usedClosure = closureDays.filter(h => {
+    const usedClosure = [...localHolidays, ...closureDays].filter(h => {
       const hDate = new Date(h.date);
       return hDate.getFullYear() === currentYear && !isWeekend(h.date);
     }).length;
@@ -156,8 +165,8 @@ const VacationManager = () => {
   const addRequest = async (r) => { await addDoc(collection(db, 'vacation_requests'), r); showNotification('success', 'Solicitud enviada'); };
   const updateRequest = async (id, r) => { await updateDoc(doc(db, 'vacation_requests', id), r); };
   const deleteRequest = async (id) => { await deleteDoc(doc(db, 'vacation_requests', id)); showNotification('success', 'Solicitud cancelada'); };
-  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: false, holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo añadido'); };
-  const updateHoliday = async (id, h) => { await updateDoc(doc(db, 'vacation_holidays', id), { ...h, holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo actualizado'); };
+  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: h.holidayType === 'local', holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo añadido'); };
+  const updateHoliday = async (id, h) => { await updateDoc(doc(db, 'vacation_holidays', id), { ...h, isLocal: h.holidayType === 'local', holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo actualizado'); };
   const deleteHoliday = async (id) => { await deleteDoc(doc(db, 'vacation_holidays', id)); showNotification('success', 'Festivo eliminado'); };
   const addDepartment = async (d) => { await addDoc(collection(db, 'vacation_departments'), d); showNotification('success', 'Departamento creado'); };
   const updateDepartment = async (id, d) => { await updateDoc(doc(db, 'vacation_departments', id), d); showNotification('success', 'Departamento actualizado'); };
@@ -1131,13 +1140,13 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
 
   const getHolidayEmoji = (h) => {
     if (h.emoji) return h.emoji;
-    if (h.isLocal) return '🎉';
+    if (h.isLocal || h.holidayType === 'local') return '📅';
     if (h.holidayType === 'turno') return '🔄';
     return '🏢';
   };
 
   const getHolidayTypeName = (h) => {
-    if (h.isLocal) return 'Festivo local';
+    if (h.isLocal || h.holidayType === 'local') return 'Festivo local';
     if (h.holidayType === 'turno') return 'Turno';
     return 'Día de cierre';
   };
@@ -1209,14 +1218,16 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
             <label className="block text-sm font-medium mb-2">Tipo de día</label>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" value="closure" checked={formData.holidayType === 'closure'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
-                <span>Día de cierre</span>
-                <span className="text-xs text-gray-500">(descuenta)</span>
+                <input type="radio" value="local" checked={formData.holidayType === 'local'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '📅' })} />
+                <span className="text-red-600">Festivo local</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" value="turno" checked={formData.holidayType === 'turno'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
-                <span>Turno</span>
-                <span className="text-xs text-gray-500">(descuenta)</span>
+                <input type="radio" value="closure" checked={formData.holidayType === 'closure'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '🏢' })} />
+                <span className="text-purple-600">Día de cierre</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="turno" checked={formData.holidayType === 'turno'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '🔄' })} />
+                <span className="text-yellow-600">Turno</span>
               </label>
             </div>
           </div>
