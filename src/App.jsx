@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.22)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.23)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.22)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.23)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -3097,6 +3097,10 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
       }
 
       vacationDates.forEach(date => {
+        // Skip weekends
+        const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) return;
+
         const record = timeclockRecords.find(r => r.userCode === vacation.userCode && r.date === date);
         if (record) {
           conflicts.push({
