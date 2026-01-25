@@ -729,11 +729,11 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                         {/* Holiday indicator */}
                         {holiday && isCurrentYear && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-3">
-                            <span className={`text-[8px] font-bold text-center leading-tight px-0.5 truncate max-w-full ${holiday.isTurno ? 'text-yellow-700' : holiday.isLocal ? 'text-red-700' : 'text-purple-700'}`}>
-                              {holiday.name}
-                            </span>
                             <span className="text-[10px]">
                               {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
+                            </span>
+                            <span className={`text-[8px] font-bold text-center leading-tight px-0.5 truncate max-w-full ${holiday.isTurno ? 'text-yellow-700' : holiday.isLocal ? 'text-red-700' : 'text-purple-700'}`}>
+                              {holiday.name}
                             </span>
                           </div>
                         )}
