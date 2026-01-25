@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.9)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.10)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.9)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.10)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -329,7 +329,7 @@ const VacationManager = () => {
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} updateUser={updateUser} />}
             {activeTab === 'feedback' && currentUser.isAdmin && <FeedbackManagement feedbacks={feedbacks} addFeedback={addFeedback} updateFeedback={updateFeedback} deleteFeedback={deleteFeedback} currentUser={currentUser} showNotification={showNotification} />}
-            {activeTab === 'timeclock' && <TimeclockView currentUser={currentUser} timeclockRecords={timeclockRecords} addTimeclockRecord={addTimeclockRecord} updateTimeclockRecord={updateTimeclockRecord} deleteTimeclockRecord={deleteTimeclockRecord} timeclockSettings={timeclockSettings} saveTimeclockSettings={saveTimeclockSettings} users={users} showNotification={showNotification} />}
+            {activeTab === 'timeclock' && <TimeclockView currentUser={currentUser} timeclockRecords={timeclockRecords} addTimeclockRecord={addTimeclockRecord} updateTimeclockRecord={updateTimeclockRecord} deleteTimeclockRecord={deleteTimeclockRecord} timeclockSettings={timeclockSettings} saveTimeclockSettings={saveTimeclockSettings} users={users} showNotification={showNotification} requests={requests} holidays={companyHolidays} />}
           </div>
         </div>
       </div>
@@ -1961,7 +1961,7 @@ const FeedbackManagement = ({ feedbacks, addFeedback, updateFeedback, deleteFeed
 };
 
 // ==================== TIMECLOCK VIEW ====================
-const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, timeclockSettings, saveTimeclockSettings, users, showNotification }) => {
+const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, timeclockSettings, saveTimeclockSettings, users, showNotification, requests, holidays }) => {
   const [activeTimeclockTab, setActiveTimeclockTab] = useState('fichar');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [locationStatus, setLocationStatus] = useState(null); // null, 'checking', 'valid', 'invalid', 'error'
@@ -2107,6 +2107,8 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
         deleteTimeclockRecord={deleteTimeclockRecord}
         showNotification={showNotification}
         calculateWorkedTime={calculateWorkedTime}
+        requests={requests}
+        holidays={holidays}
       />
     );
   }
@@ -2344,10 +2346,10 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
 };
 
 // ==================== WEEKLY STATS TABLE ====================
-const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
+const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays }) => {
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // Get week dates based on offset (0 = current week, -1 = last week, etc.)
+  // Get week dates based on offset (0 = current week, -1 = last week, etc.) - ONLY Mon-Fri
   const getWeekDates = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
@@ -2356,7 +2358,7 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
     weekStart.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
 
     const dates = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) { // Only 5 days (Mon-Fri)
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
       dates.push(d.toISOString().split('T')[0]);
@@ -2365,7 +2367,7 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
   };
 
   const weekDates = getWeekDates();
-  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 
   // Calculate break duration in minutes
   const getBreakMinutes = (record, breakType) => {
@@ -2388,6 +2390,24 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
   // Get record for user on specific date
   const getRecord = (userCode, date) => {
     return timeclockRecords.find(r => r.userCode === userCode && r.date === date);
+  };
+
+  // Check if user has vacation/request on a specific date
+  const getVacationInfo = (userCode, date) => {
+    const req = requests?.find(r => {
+      if (r.userCode !== userCode) return false;
+      if (r.status !== 'approved' && r.status !== 'pending') return false;
+      if (r.isRange) {
+        return date >= r.startDate && date <= r.endDate;
+      }
+      return r.dates?.includes(date);
+    });
+    return req;
+  };
+
+  // Check if date is a holiday
+  const getHolidayInfo = (date) => {
+    return holidays?.find(h => h.date === date);
   };
 
   const formatDateHeader = (dateStr) => {
@@ -2429,56 +2449,96 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
               <th className="p-2 border border-indigo-500 text-left sticky left-0 bg-indigo-600 z-10" rowSpan={2}>
                 Empleado
               </th>
-              {weekDates.map((date, idx) => (
-                <th key={date} colSpan={3} className={`p-2 border border-indigo-500 text-center ${idx >= 5 ? 'bg-indigo-700' : ''}`}>
-                  {dayNames[idx]} {formatDateHeader(date)}
-                </th>
-              ))}
-              <th className="p-2 border border-indigo-500 text-center bg-indigo-800" rowSpan={2}>
-                Total
+              {weekDates.map((date, idx) => {
+                const holiday = getHolidayInfo(date);
+                return (
+                  <th key={date} colSpan={3} className={`p-2 border border-indigo-500 text-center ${holiday ? 'bg-red-500' : ''}`}>
+                    {dayNames[idx]} {formatDateHeader(date)}
+                    {holiday && <span className="ml-1" title={holiday.name}>{holiday.emoji || '🎉'}</span>}
+                  </th>
+                );
+              })}
+              <th className="p-2 border border-indigo-500 text-center bg-indigo-800" colSpan={3}>
+                Totales
               </th>
             </tr>
             {/* Sub-headers row */}
             <tr className="bg-indigo-100 text-indigo-800 text-xs">
-              {weekDates.map((date, idx) => (
+              {weekDates.map((date) => (
                 <React.Fragment key={`sub-${date}`}>
-                  <th className={`p-1 border text-center ${idx >= 5 ? 'bg-indigo-200' : ''}`} title="Horas trabajadas">Trab</th>
-                  <th className={`p-1 border text-center ${idx >= 5 ? 'bg-indigo-200' : ''}`} title="Pausa desayuno">Des</th>
-                  <th className={`p-1 border text-center ${idx >= 5 ? 'bg-indigo-200' : ''}`} title="Pausa comida">Com</th>
+                  <th className="p-1 border text-center" title="Horas trabajadas">Trab</th>
+                  <th className="p-1 border text-center" title="Pausa desayuno">Des</th>
+                  <th className="p-1 border text-center" title="Pausa comida">Com</th>
                 </React.Fragment>
               ))}
+              <th className="p-1 border text-center bg-indigo-200" title="Total trabajado">Trab</th>
+              <th className="p-1 border text-center bg-indigo-200" title="Total desayuno">Des</th>
+              <th className="p-1 border text-center bg-indigo-200" title="Total comida">Com</th>
             </tr>
           </thead>
           <tbody>
             {users.filter(u => !u.isAdmin).map(user => {
               let totalWorkedMinutes = 0;
+              let totalBreakfastMinutes = 0;
+              let totalLunchMinutes = 0;
 
               return (
                 <tr key={user.code} className="hover:bg-gray-50">
                   <td className="p-2 border font-medium sticky left-0 bg-white z-10">
                     {user.name} {user.lastName}
                   </td>
-                  {weekDates.map((date, idx) => {
+                  {weekDates.map((date) => {
                     const record = getRecord(user.code, date);
+                    const vacation = getVacationInfo(user.code, date);
+                    const holiday = getHolidayInfo(date);
+
                     const worked = record ? calculateWorkedTime(record) : { hours: 0, minutes: 0 };
                     const workedMins = worked.hours * 60 + worked.minutes;
                     const breakfastMins = getBreakMinutes(record, 'desayuno');
                     const lunchMins = getBreakMinutes(record, 'comida');
 
-                    if (record?.endTime) totalWorkedMinutes += workedMins;
+                    if (record?.endTime) {
+                      totalWorkedMinutes += workedMins;
+                      totalBreakfastMinutes += breakfastMins;
+                      totalLunchMinutes += lunchMins;
+                    }
 
-                    const isWeekend = idx >= 5;
-                    const cellBg = isWeekend ? 'bg-gray-100' : '';
+                    // Determine cell background and content based on vacation/holiday
+                    let cellBg = '';
+                    let cellContent = null;
+
+                    if (vacation) {
+                      const emoji = vacation.type === 'other' ? '⚠️' : (vacation.status === 'approved' ? '✅' : '⏳');
+                      const bgColor = vacation.status === 'approved' ? 'bg-green-100' : 'bg-yellow-100';
+                      cellBg = bgColor;
+                      cellContent = (
+                        <td colSpan={3} className={`p-1 border text-center ${bgColor}`}>
+                          <span title={vacation.type === 'other' ? 'Día especial' : 'Vacaciones'}>
+                            {emoji} {vacation.type === 'other' ? 'Especial' : 'Vacaciones'}
+                          </span>
+                        </td>
+                      );
+                    } else if (holiday?.isLocal) {
+                      cellContent = (
+                        <td colSpan={3} className="p-1 border text-center bg-red-50">
+                          <span title={holiday.name}>
+                            {holiday.emoji || '🎉'} Festivo
+                          </span>
+                        </td>
+                      );
+                    }
+
+                    if (cellContent) return <React.Fragment key={`${user.code}-${date}`}>{cellContent}</React.Fragment>;
 
                     return (
                       <React.Fragment key={`${user.code}-${date}`}>
-                        <td className={`p-1 border text-center ${cellBg} ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'}`}>
+                        <td className={`p-1 border text-center ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'}`}>
                           {record?.endTime ? formatMinutes(workedMins) : (record?.startTime ? '...' : '-')}
                         </td>
-                        <td className={`p-1 border text-center text-xs ${cellBg} text-orange-600`}>
+                        <td className="p-1 border text-center text-xs text-orange-600">
                           {formatMinutes(breakfastMins)}
                         </td>
-                        <td className={`p-1 border text-center text-xs ${cellBg} text-blue-600`}>
+                        <td className="p-1 border text-center text-xs text-blue-600">
                           {formatMinutes(lunchMins)}
                         </td>
                       </React.Fragment>
@@ -2486,6 +2546,12 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
                   })}
                   <td className="p-2 border text-center font-bold text-indigo-600 bg-indigo-50">
                     {formatMinutes(totalWorkedMinutes)}
+                  </td>
+                  <td className="p-1 border text-center text-xs text-orange-600 bg-indigo-50">
+                    {formatMinutes(totalBreakfastMinutes)}
+                  </td>
+                  <td className="p-1 border text-center text-xs text-blue-600 bg-indigo-50">
+                    {formatMinutes(totalLunchMinutes)}
                   </td>
                 </tr>
               );
@@ -2495,18 +2561,21 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-xs text-gray-600">
+      <div className="flex flex-wrap gap-4 text-xs text-gray-600">
         <span><span className="text-green-700 font-medium">Trab</span> = Horas trabajadas</span>
         <span><span className="text-orange-600">Des</span> = Pausa desayuno</span>
         <span><span className="text-blue-600">Com</span> = Pausa comida</span>
-        <span><span className="text-gray-400">...</span> = En curso</span>
+        <span>✅ = Vacaciones aprobadas</span>
+        <span>⏳ = Vacaciones pendientes</span>
+        <span>⚠️ = Día especial</span>
+        <span>🎉 = Festivo</span>
       </div>
     </div>
   );
 };
 
 // ==================== ADMIN VIEW ====================
-const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime }) => {
+const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays }) => {
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
@@ -2601,6 +2670,8 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
           timeclockRecords={timeclockRecords}
           users={users}
           calculateWorkedTime={calculateWorkedTime}
+          requests={requests}
+          holidays={holidays}
         />
       )}
 
