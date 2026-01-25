@@ -198,7 +198,7 @@ const VacationManager = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {notification && <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white z-50`}>{notification.message}</div>}
-      <nav className="bg-indigo-600 text-white shadow-lg">
+      <nav className="bg-indigo-600 text-white shadow-lg sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
@@ -212,7 +212,7 @@ const VacationManager = () => {
       </nav>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-md mb-6">
-          <div className="flex border-b overflow-x-auto">
+          <div className="flex border-b overflow-x-auto sticky top-[72px] z-30 bg-white">
             <TabButton icon={Calendar} label="Calendario" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
             {currentUser.isAdmin && <>
               <TabButton icon={Users} label="Usuarios" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
