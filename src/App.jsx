@@ -93,14 +93,60 @@ const VacationManager = () => {
 
   const calculateUserDays = (userCode) => {
     const user = users.find(u => u.code === userCode);
-    if (!user) return { total: 0, used: 0, pending: 0, waiting: 0, available: 0, carryOver: 0 };
+    if (!user) return { total: 0, used: 0, pending: 0, waiting: 0, available: 0, carryOver: 0, usedOwn: 0, usedClosure: 0, usedTurno: 0 };
+
     const approved = requests.filter(r => r.userCode === userCode && r.status === 'approved' && r.type === 'vacation');
     const pending = requests.filter(r => r.userCode === userCode && r.status === 'pending' && r.type === 'vacation');
-    let used = 0, waiting = 0;
-    approved.forEach(r => { used += r.isRange ? getBusinessDays(r.startDate, r.endDate) : (r.dates?.filter(d => !isWeekend(d) && !isHoliday(d)).length || 0); });
-    pending.forEach(r => { waiting += r.isRange ? getBusinessDays(r.startDate, r.endDate) : (r.dates?.filter(d => !isWeekend(d) && !isHoliday(d)).length || 0); });
+
+    // Get closure days (company closures that count against vacation)
+    const closureDays = companyHolidays.filter(h => h.isLocal === false && h.holidayType !== 'turno');
+    const turnoDays = companyHolidays.filter(h => h.holidayType === 'turno');
+
+    // Count days from user's own vacation requests
+    let usedOwn = 0, usedTurno = 0, waiting = 0;
+
+    // Helper to get dates from a request
+    const getRequestDates = (r) => {
+      if (r.isRange) {
+        const dates = [];
+        let cur = new Date(r.startDate);
+        const end = new Date(r.endDate);
+        while (cur <= end) {
+          const dateStr = cur.toISOString().split('T')[0];
+          if (!isWeekend(dateStr) && !isHoliday(dateStr)) dates.push(dateStr);
+          cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+      }
+      return r.dates?.filter(d => !isWeekend(d) && !isHoliday(d)) || [];
+    };
+
+    approved.forEach(r => {
+      const dates = getRequestDates(r);
+      dates.forEach(d => {
+        if (turnoDays.some(t => t.date === d)) {
+          usedTurno++;
+        } else {
+          usedOwn++;
+        }
+      });
+    });
+
+    pending.forEach(r => {
+      waiting += getRequestDates(r).length;
+    });
+
+    // Count closure days (these are deducted from everyone's balance)
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const usedClosure = closureDays.filter(h => {
+      const hDate = new Date(h.date);
+      return hDate.getFullYear() === currentYear && !isWeekend(h.date);
+    }).length;
+
+    const used = usedOwn + usedClosure + usedTurno;
     const total = user.totalDays || 0, carryOver = user.carryOverDays || 0;
-    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver };
+    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno };
   };
 
   // Firebase CRUD
@@ -110,7 +156,7 @@ const VacationManager = () => {
   const addRequest = async (r) => { await addDoc(collection(db, 'vacation_requests'), r); showNotification('success', 'Solicitud enviada'); };
   const updateRequest = async (id, r) => { await updateDoc(doc(db, 'vacation_requests', id), r); };
   const deleteRequest = async (id) => { await deleteDoc(doc(db, 'vacation_requests', id)); showNotification('success', 'Solicitud cancelada'); };
-  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: false }); showNotification('success', 'Festivo añadido'); };
+  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: false, holidayType: h.holidayType || 'closure' }); showNotification('success', 'Festivo añadido'); };
   const deleteHoliday = async (id) => { await deleteDoc(doc(db, 'vacation_holidays', id)); showNotification('success', 'Festivo eliminado'); };
   const addDepartment = async (d) => { await addDoc(collection(db, 'vacation_departments'), d); showNotification('success', 'Departamento creado'); };
   const updateDepartment = async (id, d) => { await updateDoc(doc(db, 'vacation_departments', id), d); showNotification('success', 'Departamento actualizado'); };
@@ -204,10 +250,11 @@ const getDeptColorInfo = (deptName, departments) => {
   return dept ? colorMap[dept.color] || colorMap['bg-gray-100 text-gray-800'] : colorMap['bg-gray-100 text-gray-800'];
 };
 
-const RequestBadge = ({ req, user, departments, getUserDepartments }) => {
+const RequestBadge = ({ req, user, departments, getUserDepartments, isTurnoDay = false }) => {
   const userDepts = getUserDepartments(user);
   const getEmoji = () => {
     if (req.type === 'other') return '⚠️';
+    if (isTurnoDay && req.status === 'approved') return '🔄';
     return req.status === 'approved' ? '✅' : req.status === 'pending' ? '⏳' : '❌';
   };
   const emoji = getEmoji();
@@ -254,7 +301,7 @@ const CalendarView = ({ view, setView, currentDate, setCurrentDate, requests, us
           </select>
         </div>
       </div>
-      <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg"><span className="font-medium">Leyenda:</span><span>✅ Aprobado</span><span>⏳ Pendiente</span><span>❌ Denegado</span><span>⚠️ Día especial</span></div>
+      <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg"><span className="font-medium">Leyenda:</span><span>✅ Aprobado</span><span>🔄 Turno</span><span>⏳ Pendiente</span><span>❌ Denegado</span><span>⚠️ Día especial</span></div>
       {view === 'month' && <MonthCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
       {view === 'week' && <WeekCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
       {view === 'year' && <YearCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
@@ -293,7 +340,14 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
     if (!holiday) return null;
     const monthDay = dateStr.slice(5);
     const isLocal = holiday.isLocal === true || localHolidayMonthDays.has(monthDay);
-    return { ...holiday, isLocal };
+    const isTurno = holiday.holidayType === 'turno';
+    return { ...holiday, isLocal, isTurno };
+  };
+
+  const getHolidayBgClass = (holiday) => {
+    if (holiday.isTurno) return 'bg-yellow-50';
+    if (holiday.isLocal) return 'bg-red-50';
+    return 'bg-purple-50';
   };
 
   return (
@@ -309,12 +363,13 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
           const dayReqs = getRequestsForDate(day);
           const holiday = getHolidayInfo(day);
           return (
-            <div key={idx} className={`min-h-20 border rounded p-1 ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holiday ? (holiday.isLocal ? 'bg-red-50' : 'bg-purple-50') : 'bg-white'}`}>
+            <div key={idx} className={`min-h-20 border rounded p-1 ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holiday ? getHolidayBgClass(holiday) : 'bg-white'}`}>
               {day && <>
                 <div className={`font-semibold text-xs mb-1 ${isToday(day) ? 'text-blue-600' : ''}`}>{day}</div>
-                {holiday && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
+                {holiday && !holiday.isTurno && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
+                {holiday && holiday.isTurno && <div className="text-xs mb-1 text-yellow-600" title={holiday.name}>🔄</div>}
                 <div className="space-y-1">
-                  {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} />)}
+                  {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}
                   {dayReqs.length > 3 && <div className="text-xs text-gray-500">+{dayReqs.length - 3}</div>}
                 </div>
               </>}
@@ -351,7 +406,14 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
     if (!holiday) return null;
     const monthDay = dateStr.slice(5);
     const isLocal = holiday.isLocal === true || localHolidayMonthDays.has(monthDay);
-    return { ...holiday, isLocal };
+    const isTurno = holiday.holidayType === 'turno';
+    return { ...holiday, isLocal, isTurno };
+  };
+
+  const getHolidayBgClass = (holiday) => {
+    if (holiday.isTurno) return 'bg-yellow-50';
+    if (holiday.isLocal) return 'bg-red-50';
+    return 'bg-purple-50';
   };
 
   return (
@@ -369,10 +431,11 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
           const weekend = date.getDay() === 0 || date.getDay() === 6;
           const isToday = dateStr === today;
           return (
-            <div key={idx} className={`min-h-64 border rounded p-2 ${isToday ? 'bg-blue-50 border-blue-400 border-2' : weekend ? 'bg-gray-50' : holiday ? (holiday.isLocal ? 'bg-red-50' : 'bg-purple-50') : 'bg-white'}`}>
+            <div key={idx} className={`min-h-64 border rounded p-2 ${isToday ? 'bg-blue-50 border-blue-400 border-2' : weekend ? 'bg-gray-50' : holiday ? getHolidayBgClass(holiday) : 'bg-white'}`}>
               <div className={`font-semibold mb-2 text-xs ${isToday ? 'text-blue-600' : ''}`}>{date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</div>
-              {holiday && <div className={`text-xs mb-2 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
-              <div className="space-y-1">{dayReqs.map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} />)}</div>
+              {holiday && !holiday.isTurno && <div className={`text-xs mb-2 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
+              {holiday && holiday.isTurno && <div className="text-xs mb-2 text-yellow-600" title={holiday.name}>🔄</div>}
+              <div className="space-y-1">{dayReqs.map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}</div>
             </div>
           );
         })}
@@ -450,7 +513,8 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
     // Check if it's a local holiday by comparing month-day
     const monthDay = dateStr.slice(5); // Get MM-DD part
     const isLocal = holiday.isLocal === true || localHolidayMonthDays.has(monthDay);
-    return { ...holiday, isLocal };
+    const isTurno = holiday.holidayType === 'turno';
+    return { ...holiday, isLocal, isTurno };
   };
 
   const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
@@ -541,8 +605,16 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                       bgClass = 'bg-gray-50';
                       textClass = 'text-gray-300';
                     } else if (holiday) {
-                      bgClass = holiday.isLocal ? 'bg-red-100' : 'bg-purple-100';
-                      textClass = holiday.isLocal ? 'text-red-700' : 'text-purple-700';
+                      if (holiday.isTurno) {
+                        bgClass = 'bg-yellow-100';
+                        textClass = 'text-yellow-700';
+                      } else if (holiday.isLocal) {
+                        bgClass = 'bg-red-100';
+                        textClass = 'text-red-700';
+                      } else {
+                        bgClass = 'bg-purple-100';
+                        textClass = 'text-purple-700';
+                      }
                     } else if (weekend) {
                       bgClass = 'bg-gray-100';
                       textClass = 'text-gray-400';
@@ -598,8 +670,8 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
 
                         {/* Holiday indicator */}
                         {holiday && isCurrentYear && (
-                          <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>
-                            {holiday.isLocal ? '🎉' : '🏢'}
+                          <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isTurno ? 'text-yellow-600' : holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>
+                            {holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢'}
                           </div>
                         )}
 
@@ -632,6 +704,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
         <span className="font-medium">Leyenda:</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 flex items-center justify-center">🎉</span><span className="w-3 h-3 bg-red-100 border border-red-300 rounded"></span> Festivo local</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 flex items-center justify-center">🏢</span><span className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></span> Día de cierre</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 flex items-center justify-center">🔄</span><span className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded"></span> Turno</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 bg-green-500 text-white rounded-full text-[10px] flex items-center justify-center">2</span> Aprobadas</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center">1</span> Pendientes</span>
       </div>
@@ -811,6 +884,15 @@ const ApproveRequests = ({ requests, updateRequest, deleteRequest, users, calcul
   const approved = requests.filter(r => r.status === 'approved').sort((a, b) => new Date(b.approvedAt || b.createdAt) - new Date(a.approvedAt || a.createdAt));
   const getReqDays = (r) => r.isRange ? getBusinessDays(r.startDate, r.endDate) : (r.dates?.length || 0);
 
+  // Separate current vs past approved requests
+  const today = new Date().toISOString().split('T')[0];
+  const isRequestPast = (req) => {
+    if (req.isRange) return req.endDate < today;
+    return req.dates?.every(d => d < today) || false;
+  };
+  const approvedCurrent = approved.filter(r => !isRequestPast(r));
+  const approvedPast = approved.filter(r => isRequestPast(r));
+
   // Find conflicts for a specific request
   const findConflictsForRequest = (req) => {
     const reqUser = users.find(u => u.code === req.userCode);
@@ -941,46 +1023,91 @@ const ApproveRequests = ({ requests, updateRequest, deleteRequest, users, calcul
 
       {/* Approved Tab */}
       {activeTab === 'approved' && (
-        <div className="space-y-4">
-          {approved.map(req => {
-            const user = users.find(u => u.code === req.userCode);
-            return (
-              <div key={req.id} className="border rounded-lg p-4 bg-green-50">
-                <div className="flex justify-between items-start flex-wrap gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-xl">{req.type === 'other' ? '⚠️' : '✅'}</span>
-                      <h3 className="text-lg font-semibold">{user?.name} {user?.lastName}</h3>
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      {req.isRange ? <p><strong>Rango:</strong> {req.startDate} al {req.endDate} ({getReqDays(req)} días)</p> : <p><strong>Fechas:</strong> {req.dates?.join(', ')}</p>}
-                      {req.type === 'other' && <p className="text-amber-600"><strong>Tipo:</strong> Día especial</p>}
-                      {req.comments && <p><strong>Comentarios:</strong> {req.comments}</p>}
-                      <p className="mt-2 text-green-700">
-                        <strong>Aprobada por:</strong> {req.approvedByName || 'Sistema'}
-                        {req.approvedAt && <span className="text-gray-500"> el {new Date(req.approvedAt).toLocaleDateString('es-ES')}</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={async () => {
-                        if (window.confirm('¿Seguro que quieres eliminar esta solicitud aprobada?')) {
-                          await deleteRequest(req.id);
-                          showNotification('success', 'Solicitud eliminada');
-                        }
-                      }}
-                      className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded"
-                    >
-                      <Trash2 className="w-4 h-4" /><span>Eliminar</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          {approved.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes aprobadas</div>}
+        <ApprovedRequestsSubTabs
+          approvedCurrent={approvedCurrent}
+          approvedPast={approvedPast}
+          users={users}
+          getReqDays={getReqDays}
+          deleteRequest={deleteRequest}
+          showNotification={showNotification}
+        />
+      )}
+    </div>
+  );
+};
+
+const ApprovedRequestsSubTabs = ({ approvedCurrent, approvedPast, users, getReqDays, deleteRequest, showNotification }) => {
+  const [subTab, setSubTab] = useState('current');
+
+  const renderApprovedRequest = (req, showDelete = true) => {
+    const user = users.find(u => u.code === req.userCode);
+    return (
+      <div key={req.id} className="border rounded-lg p-4 bg-green-50">
+        <div className="flex justify-between items-start flex-wrap gap-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="text-xl">{req.type === 'other' ? '⚠️' : '✅'}</span>
+              <h3 className="text-lg font-semibold">{user?.name} {user?.lastName}</h3>
+            </div>
+            <div className="text-sm text-gray-700">
+              {req.isRange ? <p><strong>Rango:</strong> {req.startDate} al {req.endDate} ({getReqDays(req)} días)</p> : <p><strong>Fechas:</strong> {req.dates?.join(', ')}</p>}
+              {req.type === 'other' && <p className="text-amber-600"><strong>Tipo:</strong> Día especial</p>}
+              {req.comments && <p><strong>Comentarios:</strong> {req.comments}</p>}
+              <p className="mt-2 text-green-700">
+                <strong>Aprobada por:</strong> {req.approvedByName || 'Sistema'}
+                {req.approvedAt && <span className="text-gray-500"> el {new Date(req.approvedAt).toLocaleDateString('es-ES')}</span>}
+              </p>
+            </div>
+          </div>
+          {showDelete && (
+            <div className="flex space-x-2">
+              <button
+                onClick={async () => {
+                  if (window.confirm('¿Seguro que quieres eliminar esta solicitud aprobada?')) {
+                    await deleteRequest(req.id);
+                    showNotification('success', 'Solicitud eliminada');
+                  }
+                }}
+                className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded"
+              >
+                <Trash2 className="w-4 h-4" /><span>Eliminar</span>
+              </button>
+            </div>
+          )}
         </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs for current/past */}
+      <div className="flex space-x-2 border-b">
+        <button
+          onClick={() => setSubTab('current')}
+          className={`px-4 py-2 font-medium ${subTab === 'current' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Actuales ({approvedCurrent.length})
+        </button>
+        <button
+          onClick={() => setSubTab('past')}
+          className={`px-4 py-2 font-medium ${subTab === 'past' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Historial ({approvedPast.length})
+        </button>
+      </div>
+
+      {subTab === 'current' && (
+        <>
+          {approvedCurrent.map(req => renderApprovedRequest(req, true))}
+          {approvedCurrent.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes aprobadas actuales</div>}
+        </>
+      )}
+      {subTab === 'past' && (
+        <>
+          {approvedPast.map(req => renderApprovedRequest(req, false))}
+          {approvedPast.length === 0 && <div className="text-center py-12 text-gray-500">Sin historial de solicitudes</div>}
+        </>
       )}
     </div>
   );
@@ -988,18 +1115,73 @@ const ApproveRequests = ({ requests, updateRequest, deleteRequest, users, calcul
 
 const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotification }) => {
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ date: '', name: '' });
+  const [activeTab, setActiveTab] = useState('current');
+  const [formData, setFormData] = useState({ date: '', name: '', holidayType: 'closure' });
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Filter only admin-added holidays (not local)
+  const adminHolidays = holidays.filter(h => h.isLocal !== true);
+  const currentHolidays = adminHolidays.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const pastHolidays = adminHolidays.filter(h => h.date < today).sort((a, b) => b.date.localeCompare(a.date));
+
+  const getHolidayEmoji = (h) => {
+    if (h.isLocal) return '🎉';
+    if (h.holidayType === 'turno') return '🔄';
+    return '🏢';
+  };
+
+  const getHolidayTypeName = (h) => {
+    if (h.isLocal) return 'Festivo local';
+    if (h.holidayType === 'turno') return 'Turno';
+    return 'Día de cierre';
+  };
 
   const handleSubmit = async () => {
     if (!formData.date || !formData.name) { showNotification('error', 'Completa todos los campos'); return; }
     await addHoliday(formData);
-    setShowForm(false); setFormData({ date: '', name: '' });
+    setShowForm(false); setFormData({ date: '', name: '', holidayType: 'closure' });
   };
+
+  const renderTable = (holidayList, showDelete = true) => (
+    <table className="w-full">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="px-4 py-3 text-left">Tipo</th>
+          <th className="px-4 py-3 text-left">Fecha</th>
+          <th className="px-4 py-3 text-left">Nombre</th>
+          {showDelete && <th className="px-4 py-3 text-left">Acciones</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {holidayList.map(h => (
+          <tr key={h.id} className="border-b">
+            <td className="px-4 py-3">
+              <span className="flex items-center gap-2">
+                <span>{getHolidayEmoji(h)}</span>
+                <span className="text-sm text-gray-600">{getHolidayTypeName(h)}</span>
+              </span>
+            </td>
+            <td className="px-4 py-3">{h.date}</td>
+            <td className="px-4 py-3">{h.name}</td>
+            {showDelete && (
+              <td className="px-4 py-3">
+                <button onClick={() => deleteHoliday(h.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button>
+              </td>
+            )}
+          </tr>
+        ))}
+        {holidayList.length === 0 && (
+          <tr><td colSpan={showDelete ? 4 : 3} className="px-4 py-8 text-center text-gray-500">No hay días</td></tr>
+        )}
+      </tbody>
+    </table>
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Días de Cierre</h2>
+        <h2 className="text-2xl font-bold">Gestión de Días Especiales</h2>
         <button onClick={() => setShowForm(true)} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nuevo</span></button>
       </div>
       {showForm && (
@@ -1008,16 +1190,46 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
             <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="px-3 py-2 border rounded" />
             <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="px-3 py-2 border rounded" placeholder="Nombre" />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Tipo de día</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="closure" checked={formData.holidayType === 'closure'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
+                <span>🏢 Día de cierre</span>
+                <span className="text-xs text-gray-500">(descuenta vacaciones)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="turno" checked={formData.holidayType === 'turno'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
+                <span>🔄 Turno</span>
+                <span className="text-xs text-gray-500">(no descuenta)</span>
+              </label>
+            </div>
+          </div>
           <div className="flex space-x-2">
             <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">Añadir</button>
             <button onClick={() => setShowForm(false)} className="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
           </div>
         </div>
       )}
-      <table className="w-full">
-        <thead className="bg-gray-100"><tr><th className="px-4 py-3 text-left">Fecha</th><th className="px-4 py-3 text-left">Nombre</th><th className="px-4 py-3 text-left">Acciones</th></tr></thead>
-        <tbody>{holidays.sort((a, b) => a.date.localeCompare(b.date)).map(h => <tr key={h.id} className="border-b"><td className="px-4 py-3">{h.date}</td><td className="px-4 py-3">{h.name}</td><td className="px-4 py-3"><button onClick={() => deleteHoliday(h.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button></td></tr>)}</tbody>
-      </table>
+
+      {/* Tabs */}
+      <div className="flex space-x-2 border-b">
+        <button
+          onClick={() => setActiveTab('current')}
+          className={`px-4 py-2 font-medium ${activeTab === 'current' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Próximos ({currentHolidays.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('past')}
+          className={`px-4 py-2 font-medium ${activeTab === 'past' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Pasados ({pastHolidays.length})
+        </button>
+      </div>
+
+      {activeTab === 'current' && renderTable(currentHolidays, true)}
+      {activeTab === 'past' && renderTable(pastHolidays, false)}
     </div>
   );
 };
@@ -1136,6 +1348,48 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
 
   const selectedUser = users.find(u => u.code === selectedUserCode);
 
+  const [reqTab, setReqTab] = useState('current');
+
+  // Separate current vs past requests
+  const today = new Date().toISOString().split('T')[0];
+  const isRequestPast = (req) => {
+    if (req.isRange) return req.endDate < today;
+    return req.dates?.every(d => d < today) || false;
+  };
+
+  const currentReqs = myReqs.filter(r => !isRequestPast(r));
+  const pastReqs = myReqs.filter(r => isRequestPast(r));
+
+  const renderRequest = (req, showDelete = true) => {
+    const canDelete = req.status === 'pending' || (req.status === 'approved' && currentUser.isAdmin);
+    return (
+      <div key={req.id} className={`border rounded-lg p-4 ${req.type === 'other' ? 'bg-amber-50' : req.status === 'approved' ? 'bg-green-50' : ''}`}>
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="text-xl">{getTypeEmoji(req)}</span>
+              <span className="font-medium">
+                {req.type === 'other' ? 'Día especial' : (req.status === 'approved' ? 'Aprobado' : req.status === 'pending' ? 'Pendiente' : 'Denegado')}
+              </span>
+            </div>
+            <div className="text-sm">{req.isRange ? <p>{req.startDate} al {req.endDate}</p> : <p>{req.dates?.join(', ')}</p>}</div>
+            {req.status === 'approved' && req.approvedByName && (
+              <p className="text-sm text-green-700 mt-1">
+                Aprobada por: {req.approvedByName}
+                {req.approvedAt && <span className="text-gray-500"> el {new Date(req.approvedAt).toLocaleDateString('es-ES')}</span>}
+              </p>
+            )}
+          </div>
+          {showDelete && canDelete && (
+            <button onClick={() => { if (req.status === 'approved') { if (window.confirm('¿Seguro que quieres eliminar esta solicitud aprobada?')) deleteRequest(req.id); } else deleteRequest(req.id); }} className="text-red-600 flex items-center">
+              <Trash2 className="w-4 h-4" /><span className="text-sm ml-1">{req.status === 'pending' ? 'Cancelar' : 'Eliminar'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {currentUser.isAdmin && (
@@ -1156,6 +1410,15 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
             <div><p className="text-sm text-gray-600">Usados</p><p className="text-xl font-bold text-red-600">{d.used}</p></div>
             <div><p className="text-sm text-gray-600">En espera</p><p className="text-xl font-bold text-orange-600">{d.waiting}</p></div>
             <div><p className="text-sm text-gray-600">Disponibles</p><p className="text-xl font-bold text-green-600">{d.available}</p></div>
+          </div>
+          {/* Desglose de días usados */}
+          <div className="mt-3 pt-3 border-t border-blue-200">
+            <p className="text-sm text-gray-600 mb-1">Desglose de días usados:</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span>📅 Vacaciones propias: <strong>{d.usedOwn || 0}</strong></span>
+              <span>🏢 Días de cierre: <strong>{d.usedClosure || 0}</strong></span>
+              <span>🔄 Vacaciones en turno: <strong>{d.usedTurno || 0}</strong></span>
+            </div>
           </div>
         </div>
       )}
@@ -1214,24 +1477,36 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
           </div>
         </div>
       )}
+
+      {/* Tabs for current/past requests */}
+      <div className="flex space-x-2 border-b">
+        <button
+          onClick={() => setReqTab('current')}
+          className={`px-4 py-2 font-medium ${reqTab === 'current' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Actuales ({currentReqs.length})
+        </button>
+        <button
+          onClick={() => setReqTab('past')}
+          className={`px-4 py-2 font-medium ${reqTab === 'past' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Historial ({pastReqs.length})
+        </button>
+      </div>
+
       <div className="space-y-3">
-        {myReqs.map(req => (
-          <div key={req.id} className={`border rounded-lg p-4 ${req.type === 'other' ? 'bg-amber-50' : ''}`}>
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="text-xl">{getTypeEmoji(req)}</span>
-                  <span className="font-medium">
-                    {req.type === 'other' ? 'Día especial' : (req.status === 'approved' ? 'Aprobado' : req.status === 'pending' ? 'Pendiente' : 'Denegado')}
-                  </span>
-                </div>
-                <div className="text-sm">{req.isRange ? <p>{req.startDate} al {req.endDate}</p> : <p>{req.dates?.join(', ')}</p>}</div>
-              </div>
-              {req.status === 'pending' && <button onClick={() => deleteRequest(req.id)} className="text-red-600 flex items-center"><Trash2 className="w-4 h-4" /><span className="text-sm ml-1">Cancelar</span></button>}
-            </div>
-          </div>
-        ))}
-        {myReqs.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes</div>}
+        {reqTab === 'current' && (
+          <>
+            {currentReqs.map(req => renderRequest(req, true))}
+            {currentReqs.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes actuales</div>}
+          </>
+        )}
+        {reqTab === 'past' && (
+          <>
+            {pastReqs.map(req => renderRequest(req, false))}
+            {pastReqs.length === 0 && <div className="text-center py-12 text-gray-500">Sin historial</div>}
+          </>
+        )}
       </div>
     </div>
   );
