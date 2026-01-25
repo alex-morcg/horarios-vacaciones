@@ -276,7 +276,7 @@ const VacationManager = () => {
             {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} deleteRequest={deleteRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
-            {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} />}
+            {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} updateUser={updateUser} />}
           </div>
         </div>
       </div>
@@ -843,7 +843,7 @@ const DepartmentsManagement = ({ departments, addDepartment, updateDepartment, d
 const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotification, calculateUserDays, requests, viewingUserHistory, setViewingUserHistory, departments, getUserDepartments }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [formData, setFormData] = useState({ code: '', name: '', lastName: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false });
+  const [formData, setFormData] = useState({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false });
 
   const handleSubmit = async () => {
     if (!formData.code || !formData.name || !formData.lastName || formData.departments.length === 0) { showNotification('error', 'Completa todos los campos'); return; }
@@ -896,6 +896,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
             <input type="text" disabled={!!editingUser} value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} className="px-3 py-2 border rounded disabled:bg-gray-100" placeholder="Código" />
             <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="px-3 py-2 border rounded" placeholder="Nombre" />
             <input type="text" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="px-3 py-2 border rounded" placeholder="Apellido" />
+            <input type="tel" value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="px-3 py-2 border rounded" placeholder="Teléfono (+34...)" />
             <input type="number" min="0" value={formData.totalDays} onChange={(e) => setFormData({ ...formData, totalDays: parseInt(e.target.value) || 0 })} className="px-3 py-2 border rounded" placeholder="Días totales" />
             <input type="number" min="0" value={formData.carryOverDays} onChange={(e) => setFormData({ ...formData, carryOverDays: parseInt(e.target.value) || 0 })} className="px-3 py-2 border rounded" placeholder="Días sobrantes" />
           </div>
@@ -918,7 +919,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100"><tr><th className="px-4 py-3 text-left">Código</th><th className="px-4 py-3 text-left">Nombre</th><th className="px-4 py-3 text-left">Depts</th><th className="px-4 py-3 text-left">Usados</th><th className="px-4 py-3 text-left">Disp.</th><th className="px-4 py-3 text-left">Acciones</th></tr></thead>
+          <thead className="bg-gray-100"><tr><th className="px-4 py-3 text-left">Código</th><th className="px-4 py-3 text-left">Nombre</th><th className="px-4 py-3 text-left">Teléfono</th><th className="px-4 py-3 text-left">Depts</th><th className="px-4 py-3 text-left">Usados</th><th className="px-4 py-3 text-left">Disp.</th><th className="px-4 py-3 text-left">Acciones</th></tr></thead>
           <tbody>
             {users.map(user => {
               const d = calculateUserDays(user.code);
@@ -926,6 +927,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
                 <tr key={user.id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3">{user.code}</td>
                   <td className="px-4 py-3">{user.name} {user.lastName}</td>
+                  <td className="px-4 py-3 text-gray-600">{user.phone || '-'}</td>
                   <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{getUserDepartments(user).map(d => <span key={d} className="text-xs px-2 py-1 rounded bg-gray-100">{d}</span>)}</div></td>
                   <td className="px-4 py-3 text-blue-600 font-semibold">{d.used}</td>
                   <td className="px-4 py-3 text-green-600 font-semibold">{d.available}</td>
@@ -1325,11 +1327,42 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
   );
 };
 
-const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculateUserDays, isWeekend, isHoliday, getBusinessDays, showNotification, users = [], departments = [], getUserDepartments }) => {
+const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculateUserDays, isWeekend, isHoliday, getBusinessDays, showNotification, users = [], departments = [], getUserDepartments, updateUser }) => {
   const [showForm, setShowForm] = useState(false);
   const [requestType, setRequestType] = useState('range');
   const [selectedUserCode, setSelectedUserCode] = useState(currentUser.code);
   const [formData, setFormData] = useState({ type: 'vacation', startDate: '', endDate: '', dates: [], newDate: '', comments: '' });
+
+  // Profile/WhatsApp settings
+  const [showProfile, setShowProfile] = useState(false);
+  const [profilePhone, setProfilePhone] = useState(currentUser.phone || '');
+  const [profileWhatsApp, setProfileWhatsApp] = useState(currentUser.whatsappNotifications ?? false);
+  const [phoneError, setPhoneError] = useState('');
+
+  const validatePhone = (phone) => {
+    if (!phone) return true; // Empty is valid (optional)
+    const phoneRegex = /^\+[1-9]\d{6,14}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const handleSaveProfile = async () => {
+    if (profilePhone && !validatePhone(profilePhone)) {
+      setPhoneError('Formato inválido. Usa formato internacional: +34612345678');
+      return;
+    }
+
+    const userToUpdate = users.find(u => u.code === currentUser.code);
+    if (userToUpdate) {
+      await updateUser(userToUpdate.id, {
+        ...userToUpdate,
+        phone: profilePhone,
+        whatsappNotifications: profileWhatsApp
+      });
+      setPhoneError('');
+      setShowProfile(false);
+      showNotification('success', 'Perfil actualizado');
+    }
+  };
 
   const targetUserCode = currentUser.isAdmin ? selectedUserCode : currentUser.code;
   const d = calculateUserDays(targetUserCode);
@@ -1513,6 +1546,71 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
           </div>
         </div>
       )}
+
+      {/* Profile/WhatsApp Settings - only for non-admin users viewing their own profile */}
+      {!currentUser.isAdmin && (
+        <div className="bg-green-50 p-4 rounded-lg">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Notificaciones WhatsApp</h3>
+            <button onClick={() => setShowProfile(!showProfile)} className="text-green-600 text-sm font-medium hover:text-green-700">
+              {showProfile ? 'Cerrar' : 'Configurar'}
+            </button>
+          </div>
+          {!showProfile && (
+            <p className="text-sm text-gray-600 mt-1">
+              {currentUser.whatsappNotifications && currentUser.phone
+                ? `Activas - ${currentUser.phone}`
+                : 'Desactivadas - Configura tu teléfono para recibir alertas'}
+            </p>
+          )}
+          {showProfile && (
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="flex items-center space-x-2 mb-3">
+                  <input
+                    type="checkbox"
+                    checked={profileWhatsApp}
+                    onChange={(e) => setProfileWhatsApp(e.target.checked)}
+                    className="w-5 h-5 rounded"
+                  />
+                  <span className="font-medium">Recibir notificaciones por WhatsApp</span>
+                </label>
+              </div>
+              {profileWhatsApp && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Número de teléfono</label>
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => {
+                      setProfilePhone(e.target.value);
+                      setPhoneError('');
+                    }}
+                    className={`w-full px-3 py-2 border rounded ${phoneError ? 'border-red-500' : ''}`}
+                    placeholder="+34612345678"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Formato internacional: +34 seguido del número (ej: +34612345678)</p>
+                  {phoneError && <p className="text-sm text-red-600 mt-1">{phoneError}</p>}
+                </div>
+              )}
+              <div className="flex space-x-2">
+                <button onClick={handleSaveProfile} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                  Guardar
+                </button>
+                <button onClick={() => {
+                  setShowProfile(false);
+                  setProfilePhone(currentUser.phone || '');
+                  setProfileWhatsApp(currentUser.whatsappNotifications ?? false);
+                  setPhoneError('');
+                }} className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">{currentUser.isAdmin && selectedUserCode !== currentUser.code ? `Solicitudes de ${selectedUser?.name || 'Usuario'}` : 'Mis Solicitudes'}</h2>
         <button onClick={() => setShowForm(true)} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nueva</span></button>
