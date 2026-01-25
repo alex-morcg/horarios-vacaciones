@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, FileText, Settings, LogOut, Plus, Check, X, Trash2, Eye, ChevronLeft, ChevronRight, Wifi, WifiOff } from 'lucide-react';
+import { Calendar, Users, FileText, Settings, LogOut, Plus, Check, X, Trash2, Eye, ChevronLeft, ChevronRight, Wifi, WifiOff, MessageSquare } from 'lucide-react';
 import { db } from './firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 
@@ -11,6 +11,7 @@ const VacationManager = () => {
   const [requests, setRequests] = useState([]);
   const [companyHolidays, setCompanyHolidays] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(true);
   const [calendarView, setCalendarView] = useState('month');
@@ -112,7 +113,11 @@ const VacationManager = () => {
       setLoading(false);
     });
 
-    return () => { unsubUsers(); unsubRequests(); unsubHolidays(); unsubDepts(); };
+    const unsubFeedbacks = onSnapshot(collection(db, 'vacation_feedbacks'), (snap) => {
+      setFeedbacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubUsers(); unsubRequests(); unsubHolidays(); unsubDepts(); unsubFeedbacks(); };
   }, []);
 
   const getUserDepartments = (user) => user?.departments || [];
@@ -219,6 +224,9 @@ const VacationManager = () => {
   const addDepartment = async (d) => { await addDoc(collection(db, 'vacation_departments'), d); showNotification('success', 'Departamento creado'); };
   const updateDepartment = async (id, d) => { await updateDoc(doc(db, 'vacation_departments', id), d); showNotification('success', 'Departamento actualizado'); };
   const deleteDepartment = async (id) => { await deleteDoc(doc(db, 'vacation_departments', id)); showNotification('success', 'Departamento eliminado'); };
+  const addFeedback = async (f) => { await addDoc(collection(db, 'vacation_feedbacks'), f); showNotification('success', 'Feedback añadido'); };
+  const updateFeedback = async (id, f) => { await updateDoc(doc(db, 'vacation_feedbacks', id), f); };
+  const deleteFeedback = async (id) => { await deleteDoc(doc(db, 'vacation_feedbacks', id)); showNotification('success', 'Feedback eliminado'); };
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100"><Calendar className="w-16 h-16 text-indigo-600 animate-pulse" /></div>;
 
@@ -269,6 +277,7 @@ const VacationManager = () => {
               <TabButton icon={Users} label="Departamentos" active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} />
             </>}
             <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />
+            {currentUser.isAdmin && <TabButton icon={MessageSquare} label="Feedback" active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />}
           </div>
           <div className="p-6">
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
@@ -277,6 +286,7 @@ const VacationManager = () => {
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} updateUser={updateUser} />}
+            {activeTab === 'feedback' && currentUser.isAdmin && <FeedbackManagement feedbacks={feedbacks} addFeedback={addFeedback} updateFeedback={updateFeedback} deleteFeedback={deleteFeedback} currentUser={currentUser} showNotification={showNotification} />}
           </div>
         </div>
       </div>
@@ -1789,6 +1799,107 @@ const MyRequests = ({ currentUser, requests, addRequest, deleteRequest, calculat
             {pastReqs.length === 0 && <div className="text-center py-12 text-gray-500">Sin historial</div>}
           </>
         )}
+      </div>
+    </div>
+  );
+};
+
+const FeedbackManagement = ({ feedbacks, addFeedback, updateFeedback, deleteFeedback, currentUser, showNotification }) => {
+  const [newMessage, setNewMessage] = useState('');
+
+  const handleSubmit = async () => {
+    if (!newMessage.trim()) {
+      showNotification('error', 'Escribe un mensaje');
+      return;
+    }
+    await addFeedback({
+      message: newMessage.trim(),
+      completed: false,
+      createdBy: currentUser.name || currentUser.code,
+      createdAt: new Date().toISOString(),
+    });
+    setNewMessage('');
+  };
+
+  const toggleComplete = async (feedback) => {
+    await updateFeedback(feedback.id, {
+      ...feedback,
+      completed: !feedback.completed,
+      completedAt: !feedback.completed ? new Date().toISOString() : null,
+      completedBy: !feedback.completed ? (currentUser.name || currentUser.code) : null,
+    });
+  };
+
+  const sortedFeedbacks = [...feedbacks].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Feedback / Tareas</h2>
+
+      {/* Formulario para añadir */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Escribe un mensaje o tarea..."
+            className="flex-1 px-4 py-2 border rounded-lg"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+          />
+          <button
+            onClick={handleSubmit}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Añadir
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de feedbacks */}
+      <div className="space-y-2">
+        {sortedFeedbacks.length === 0 && (
+          <div className="text-center py-12 text-gray-500">No hay feedback todavía</div>
+        )}
+        {sortedFeedbacks.map((fb) => (
+          <div
+            key={fb.id}
+            className={`flex items-start gap-3 p-4 rounded-lg border ${fb.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+          >
+            <button
+              onClick={() => toggleComplete(fb)}
+              className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${fb.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-indigo-500'}`}
+            >
+              {fb.completed && <Check className="w-4 h-4" />}
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className={`${fb.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                {fb.message}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
+                <span>Creado por: {fb.createdBy}</span>
+                <span>·</span>
+                <span>{new Date(fb.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                {fb.completed && fb.completedBy && (
+                  <>
+                    <span>·</span>
+                    <span className="text-green-600">Completado por: {fb.completedBy}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => deleteFeedback(fb.id)}
+              className="text-red-500 hover:text-red-700 p-1"
+              title="Eliminar"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
