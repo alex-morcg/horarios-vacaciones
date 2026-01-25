@@ -950,11 +950,11 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const defaultSchedule = {
-    lunes: { entrada: '09:00', salida: '18:00', activo: true },
-    martes: { entrada: '09:00', salida: '18:00', activo: true },
-    miercoles: { entrada: '09:00', salida: '18:00', activo: true },
-    jueves: { entrada: '09:00', salida: '18:00', activo: true },
-    viernes: { entrada: '09:00', salida: '18:00', activo: true }
+    lunes: { entrada: '08:00', salida: '17:00', activo: true },
+    martes: { entrada: '08:00', salida: '17:00', activo: true },
+    miercoles: { entrada: '08:00', salida: '17:00', activo: true },
+    jueves: { entrada: '08:00', salida: '17:00', activo: true },
+    viernes: { entrada: '08:00', salida: '15:00', activo: true }
   };
   const [formData, setFormData] = useState({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, schedule: defaultSchedule });
 
