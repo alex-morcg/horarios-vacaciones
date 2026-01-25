@@ -169,7 +169,7 @@ const VacationManager = () => {
           <div className="p-6">
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
             {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} />}
-            {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
+            {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} deleteRequest={deleteRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} />}
@@ -272,6 +272,11 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
   const today = new Date();
   const isToday = (day) => day && today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
 
+  // Local holidays month-day patterns
+  const localHolidayMonthDays = new Set([
+    '01-01', '01-06', '04-03', '04-06', '03-26', '03-29', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'
+  ]);
+
   const getRequestsForDate = (day) => {
     if (!day) return [];
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -281,10 +286,14 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
     });
   };
 
-  const getHolidayName = (day) => {
+  const getHolidayInfo = (day) => {
     if (!day) return null;
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return holidays.find(h => h.date === dateStr)?.name || null;
+    const holiday = holidays.find(h => h.date === dateStr);
+    if (!holiday) return null;
+    const monthDay = dateStr.slice(5);
+    const isLocal = holiday.isLocal === true || localHolidayMonthDays.has(monthDay);
+    return { ...holiday, isLocal };
   };
 
   return (
@@ -298,12 +307,12 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
         {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => <div key={d} className="text-center font-semibold text-gray-600 py-2 text-xs">{d}</div>)}
         {days.map((day, idx) => {
           const dayReqs = getRequestsForDate(day);
-          const holidayName = getHolidayName(day);
+          const holiday = getHolidayInfo(day);
           return (
-            <div key={idx} className={`min-h-20 border rounded p-1 ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holidayName ? 'bg-red-50' : 'bg-white'}`}>
+            <div key={idx} className={`min-h-20 border rounded p-1 ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holiday ? (holiday.isLocal ? 'bg-red-50' : 'bg-purple-50') : 'bg-white'}`}>
               {day && <>
                 <div className={`font-semibold text-xs mb-1 ${isToday(day) ? 'text-blue-600' : ''}`}>{day}</div>
-                {holidayName && <div className="text-xs text-red-600 mb-1 truncate" title={holidayName}>🎉 {holidayName}</div>}
+                {holiday && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
                 <div className="space-y-1">
                   {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} />)}
                   {dayReqs.length > 3 && <div className="text-xs text-gray-500">+{dayReqs.length - 3}</div>}
@@ -324,12 +333,25 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); return d; });
   const today = new Date().toISOString().split('T')[0];
 
+  // Local holidays month-day patterns
+  const localHolidayMonthDays = new Set([
+    '01-01', '01-06', '04-03', '04-06', '03-26', '03-29', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'
+  ]);
+
   const getRequestsForDate = (date) => {
     const dateStr = date.toISOString().split('T')[0];
     return requests.filter(r => {
       if (r.isRange) return dateStr >= r.startDate && dateStr <= r.endDate && date.getDay() !== 0 && date.getDay() !== 6 && !holidays.some(h => h.date === dateStr);
       return r.dates?.includes(dateStr);
     });
+  };
+
+  const getHolidayInfo = (dateStr) => {
+    const holiday = holidays.find(h => h.date === dateStr);
+    if (!holiday) return null;
+    const monthDay = dateStr.slice(5);
+    const isLocal = holiday.isLocal === true || localHolidayMonthDays.has(monthDay);
+    return { ...holiday, isLocal };
   };
 
   return (
@@ -343,13 +365,13 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
         {days.map((date, idx) => {
           const dayReqs = getRequestsForDate(date);
           const dateStr = date.toISOString().split('T')[0];
-          const holidayName = holidays.find(h => h.date === dateStr)?.name;
+          const holiday = getHolidayInfo(dateStr);
           const weekend = date.getDay() === 0 || date.getDay() === 6;
           const isToday = dateStr === today;
           return (
-            <div key={idx} className={`min-h-32 border rounded p-2 ${isToday ? 'bg-blue-50 border-blue-400 border-2' : weekend ? 'bg-gray-50' : holidayName ? 'bg-red-50' : 'bg-white'}`}>
+            <div key={idx} className={`min-h-64 border rounded p-2 ${isToday ? 'bg-blue-50 border-blue-400 border-2' : weekend ? 'bg-gray-50' : holiday ? (holiday.isLocal ? 'bg-red-50' : 'bg-purple-50') : 'bg-white'}`}>
               <div className={`font-semibold mb-2 text-xs ${isToday ? 'text-blue-600' : ''}`}>{date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</div>
-              {holidayName && <div className="text-xs text-red-600 mb-2 truncate" title={holidayName}>🎉 {holidayName}</div>}
+              {holiday && <div className={`text-xs mb-2 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
               <div className="space-y-1">{dayReqs.map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} />)}</div>
             </div>
           );
@@ -577,7 +599,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                         {/* Holiday indicator */}
                         {holiday && isCurrentYear && (
                           <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>
-                            {holiday.isLocal ? '🔴' : '🟣'}
+                            {holiday.isLocal ? '🎉' : '🏢'}
                           </div>
                         )}
 
@@ -608,8 +630,8 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-4 text-xs bg-gray-50 p-3 rounded-lg">
         <span className="font-medium">Leyenda:</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 border border-red-300 rounded"></span> Festivo local</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></span> Día de cierre</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 flex items-center justify-center">🎉</span><span className="w-3 h-3 bg-red-100 border border-red-300 rounded"></span> Festivo local</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 flex items-center justify-center">🏢</span><span className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></span> Día de cierre</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 bg-green-500 text-white rounded-full text-[10px] flex items-center justify-center">2</span> Aprobadas</span>
         <span className="flex items-center gap-1"><span className="w-4 h-4 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center">1</span> Pendientes</span>
       </div>
@@ -783,8 +805,10 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
   );
 };
 
-const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, getBusinessDays, currentUser, getUserDepartments, showNotification, isWeekend, isHoliday }) => {
+const ApproveRequests = ({ requests, updateRequest, deleteRequest, users, calculateUserDays, getBusinessDays, currentUser, getUserDepartments, showNotification, isWeekend, isHoliday }) => {
+  const [activeTab, setActiveTab] = useState('pending');
   const pending = requests.filter(r => r.status === 'pending');
+  const approved = requests.filter(r => r.status === 'approved').sort((a, b) => new Date(b.approvedAt || b.createdAt) - new Date(a.approvedAt || a.createdAt));
   const getReqDays = (r) => r.isRange ? getBusinessDays(r.startDate, r.endDate) : (r.dates?.length || 0);
 
   // Find conflicts for a specific request
@@ -793,7 +817,6 @@ const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, ge
     const reqDepts = getUserDepartments ? getUserDepartments(reqUser) : (reqUser?.departments || []);
     if (reqDepts.length === 0) return [];
 
-    // Get dates for this request
     let reqDates = [];
     if (req.isRange) {
       let cur = new Date(req.startDate);
@@ -807,7 +830,6 @@ const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, ge
       reqDates = (req.dates || []).filter(d => !isWeekend(d) && !isHoliday(d));
     }
 
-    // Find coworkers in the same department(s)
     const coworkers = users.filter(u => {
       if (u.code === req.userCode) return false;
       const userDepts = getUserDepartments ? getUserDepartments(u) : (u.departments || []);
@@ -854,46 +876,112 @@ const ApproveRequests = ({ requests, updateRequest, users, calculateUserDays, ge
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Aprobar Solicitudes</h2>
-      {pending.map(req => {
-        const user = users.find(u => u.code === req.userCode);
-        const d = calculateUserDays(req.userCode);
-        const conflicts = findConflictsForRequest(req);
-        return (
-          <div key={req.id} className="border rounded-lg p-4 bg-yellow-50">
-            <div className="flex justify-between items-start flex-wrap gap-4">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2"><span className="text-xl">⏳</span><h3 className="text-lg font-semibold">{user?.name} {user?.lastName}</h3></div>
-                <div className="text-sm text-gray-700">
-                  {req.isRange ? <p><strong>Rango:</strong> {req.startDate} al {req.endDate} ({getReqDays(req)} días)</p> : <p><strong>Fechas:</strong> {req.dates?.join(', ')}</p>}
-                  {req.comments && <p><strong>Comentarios:</strong> {req.comments}</p>}
-                  <p><strong>Saldo disponible:</strong> {d.available} días</p>
-                </div>
-                {conflicts.length > 0 && (
-                  <div className="mt-3 text-sm bg-orange-50 border border-orange-200 p-3 rounded">
-                    <div className="font-semibold text-orange-700 mb-2">⚠️ Conflictos con compañeros de departamento:</div>
-                    <div className="space-y-1">
-                      {conflicts.map((c, idx) => (
-                        <div key={idx} className="text-orange-600">
-                          <span className="font-medium">{c.user.name} {c.user.lastName}</span>
-                          <span className="text-gray-500"> ({c.sharedDepts.join(', ')})</span>
-                          <span> - {c.status === 'approved' ? '✅ Aprobado' : '⏳ Pendiente'}</span>
-                          <span className="text-gray-500"> - {c.dates.length} día(s): {c.dates.slice(0, 3).join(', ')}{c.dates.length > 3 ? '...' : ''}</span>
+      <h2 className="text-2xl font-bold">Gestión de Solicitudes</h2>
+
+      {/* Tabs */}
+      <div className="flex space-x-2 border-b">
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2 font-medium ${activeTab === 'pending' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Pendientes ({pending.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('approved')}
+          className={`px-4 py-2 font-medium ${activeTab === 'approved' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Aprobadas ({approved.length})
+        </button>
+      </div>
+
+      {/* Pending Tab */}
+      {activeTab === 'pending' && (
+        <div className="space-y-4">
+          {pending.map(req => {
+            const user = users.find(u => u.code === req.userCode);
+            const d = calculateUserDays(req.userCode);
+            const conflicts = findConflictsForRequest(req);
+            return (
+              <div key={req.id} className="border rounded-lg p-4 bg-yellow-50">
+                <div className="flex justify-between items-start flex-wrap gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2"><span className="text-xl">⏳</span><h3 className="text-lg font-semibold">{user?.name} {user?.lastName}</h3></div>
+                    <div className="text-sm text-gray-700">
+                      {req.isRange ? <p><strong>Rango:</strong> {req.startDate} al {req.endDate} ({getReqDays(req)} días)</p> : <p><strong>Fechas:</strong> {req.dates?.join(', ')}</p>}
+                      {req.comments && <p><strong>Comentarios:</strong> {req.comments}</p>}
+                      <p><strong>Saldo disponible:</strong> {d.available} días</p>
+                    </div>
+                    {conflicts.length > 0 && (
+                      <div className="mt-3 text-sm bg-orange-50 border border-orange-200 p-3 rounded">
+                        <div className="font-semibold text-orange-700 mb-2">⚠️ Conflictos con compañeros de departamento:</div>
+                        <div className="space-y-1">
+                          {conflicts.map((c, idx) => (
+                            <div key={idx} className="text-orange-600">
+                              <span className="font-medium">{c.user.name} {c.user.lastName}</span>
+                              <span className="text-gray-500"> ({c.sharedDepts.join(', ')})</span>
+                              <span> - {c.status === 'approved' ? '✅ Aprobado' : '⏳ Pendiente'}</span>
+                              <span className="text-gray-500"> - {c.dates.length} día(s): {c.dates.slice(0, 3).join(', ')}{c.dates.length > 3 ? '...' : ''}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button onClick={async () => { await updateRequest(req.id, { status: 'approved', approvedBy: currentUser.code, approvedByName: currentUser.name, approvedAt: new Date().toISOString() }); showNotification('success', 'Aprobada'); }} className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded"><Check className="w-4 h-4" /><span>Aprobar</span></button>
+                    <button onClick={async () => { await updateRequest(req.id, { status: 'denied', approvedBy: currentUser.code, approvedByName: currentUser.name, approvedAt: new Date().toISOString() }); showNotification('success', 'Denegada'); }} className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded"><X className="w-4 h-4" /><span>Denegar</span></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {pending.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes pendientes</div>}
+        </div>
+      )}
+
+      {/* Approved Tab */}
+      {activeTab === 'approved' && (
+        <div className="space-y-4">
+          {approved.map(req => {
+            const user = users.find(u => u.code === req.userCode);
+            return (
+              <div key={req.id} className="border rounded-lg p-4 bg-green-50">
+                <div className="flex justify-between items-start flex-wrap gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-xl">{req.type === 'other' ? '⚠️' : '✅'}</span>
+                      <h3 className="text-lg font-semibold">{user?.name} {user?.lastName}</h3>
+                    </div>
+                    <div className="text-sm text-gray-700">
+                      {req.isRange ? <p><strong>Rango:</strong> {req.startDate} al {req.endDate} ({getReqDays(req)} días)</p> : <p><strong>Fechas:</strong> {req.dates?.join(', ')}</p>}
+                      {req.type === 'other' && <p className="text-amber-600"><strong>Tipo:</strong> Día especial</p>}
+                      {req.comments && <p><strong>Comentarios:</strong> {req.comments}</p>}
+                      <p className="mt-2 text-green-700">
+                        <strong>Aprobada por:</strong> {req.approvedByName || 'Sistema'}
+                        {req.approvedAt && <span className="text-gray-500"> el {new Date(req.approvedAt).toLocaleDateString('es-ES')}</span>}
+                      </p>
                     </div>
                   </div>
-                )}
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('¿Seguro que quieres eliminar esta solicitud aprobada?')) {
+                          await deleteRequest(req.id);
+                          showNotification('success', 'Solicitud eliminada');
+                        }
+                      }}
+                      className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" /><span>Eliminar</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex space-x-2">
-                <button onClick={async () => { await updateRequest(req.id, { status: 'approved', approvedBy: currentUser.code, approvedByName: currentUser.name, approvedAt: new Date().toISOString() }); showNotification('success', 'Aprobada'); }} className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded"><Check className="w-4 h-4" /><span>Aprobar</span></button>
-                <button onClick={async () => { await updateRequest(req.id, { status: 'denied', approvedBy: currentUser.code, approvedByName: currentUser.name, approvedAt: new Date().toISOString() }); showNotification('success', 'Denegada'); }} className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded"><X className="w-4 h-4" /><span>Denegar</span></button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      {pending.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes pendientes</div>}
+            );
+          })}
+          {approved.length === 0 && <div className="text-center py-12 text-gray-500">Sin solicitudes aprobadas</div>}
+        </div>
+      )}
     </div>
   );
 };
