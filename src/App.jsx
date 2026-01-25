@@ -22,6 +22,7 @@ const VacationManager = () => {
   const [viewingUserHistory, setViewingUserHistory] = useState(null);
   const [timeclockRecords, setTimeclockRecords] = useState([]);
   const [timeclockSettings, setTimeclockSettings] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   const defaultHolidays = [
     // 2025
@@ -236,6 +237,17 @@ const VacationManager = () => {
   const addRequest = async (r) => { await addDoc(collection(db, 'vacation_requests'), r); showNotification('success', 'Solicitud enviada'); };
   const updateRequest = async (id, r) => { await updateDoc(doc(db, 'vacation_requests', id), r); };
   const deleteRequest = async (id) => { await deleteDoc(doc(db, 'vacation_requests', id)); showNotification('success', 'Solicitud cancelada'); };
+
+  // Handle click on request from calendar - navigate to approve or edit
+  const handleRequestClick = (req) => {
+    if (!currentUser?.isAdmin) return;
+    setSelectedRequest(req);
+    if (req.status === 'pending') {
+      setActiveTab('approve');
+    } else {
+      setActiveTab('myRequests');
+    }
+  };
   const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: h.holidayType === 'local', holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo añadido'); };
   const updateHoliday = async (id, h) => { await updateDoc(doc(db, 'vacation_holidays', id), { ...h, isLocal: h.holidayType === 'local', holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo actualizado'); };
   const deleteHoliday = async (id) => { await deleteDoc(doc(db, 'vacation_holidays', id)); showNotification('success', 'Festivo eliminado'); };
@@ -265,7 +277,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.23)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.24)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +312,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.23)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.24)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -322,7 +334,7 @@ const VacationManager = () => {
             {currentUser.isAdmin && activeTab !== 'timeclock' && <TabButton icon={MessageSquare} label="Feedback" active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />}
           </div>
           <div className="p-6">
-            {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
+            {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} onRequestClick={currentUser?.isAdmin ? handleRequestClick : null} />}
             {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} />}
             {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} deleteRequest={deleteRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
@@ -361,7 +373,7 @@ const getDeptColorInfo = (deptName, departments) => {
   return dept ? colorMap[dept.color] || colorMap['bg-gray-100 text-gray-800'] : colorMap['bg-gray-100 text-gray-800'];
 };
 
-const RequestBadge = ({ req, user, departments, getUserDepartments, isTurnoDay = false }) => {
+const RequestBadge = ({ req, user, departments, getUserDepartments, isTurnoDay = false, onRequestClick }) => {
   const userDepts = getUserDepartments(user);
   const getEmoji = () => {
     if (req.type === 'other') return '⚠️';
@@ -369,21 +381,23 @@ const RequestBadge = ({ req, user, departments, getUserDepartments, isTurnoDay =
     return req.status === 'approved' ? '✅' : req.status === 'pending' ? '⏳' : '❌';
   };
   const emoji = getEmoji();
+  const handleClick = () => onRequestClick && onRequestClick(req);
+  const clickClass = onRequestClick ? 'cursor-pointer hover:opacity-80' : '';
   if (userDepts.length <= 1) {
     const color = userDepts.length === 1 ? getDeptColorInfo(userDepts[0], departments) : { bg: 'bg-gray-200', text: 'text-gray-900' };
-    return <div className={`text-xs px-1 py-0.5 rounded truncate flex items-center gap-1 ${color.bg} ${color.text}`} title={`${user?.name} ${user?.lastName}${req.type === 'other' ? ' (Día especial)' : ''}`}><span>{emoji}</span><span className="truncate">{user?.name}</span></div>;
+    return <div onClick={handleClick} className={`text-xs px-1 py-0.5 rounded truncate flex items-center gap-1 ${color.bg} ${color.text} ${clickClass}`} title={`${user?.name} ${user?.lastName}${req.type === 'other' ? ' (Día especial)' : ''}`}><span>{emoji}</span><span className="truncate">{user?.name}</span></div>;
   }
   const colors = userDepts.slice(0, 3).map(d => getDeptColorInfo(d, departments));
   const w = 100 / colors.length;
   return (
-    <div className="text-xs rounded overflow-hidden relative" style={{ minHeight: '22px' }} title={`${user?.name} - ${userDepts.join(', ')}${req.type === 'other' ? ' (Día especial)' : ''}`}>
+    <div onClick={handleClick} className={`text-xs rounded overflow-hidden relative ${clickClass}`} style={{ minHeight: '22px' }} title={`${user?.name} - ${userDepts.join(', ')}${req.type === 'other' ? ' (Día especial)' : ''}`}>
       <div className="absolute inset-0 flex">{colors.map((c, i) => <div key={i} className={c.bg} style={{ width: `${w}%`, borderRight: i < colors.length - 1 ? '1px solid #666' : 'none' }} />)}</div>
       <div className="relative px-1 py-0.5 flex items-center gap-1 text-gray-900"><span>{emoji}</span><span className="truncate">{user?.name}</span></div>
     </div>
   );
 };
 
-const CalendarView = ({ view, setView, currentDate, setCurrentDate, requests, users, holidays, filterDepartment, setFilterDepartment, filterUser, setFilterUser, departments, getUserDepartments }) => {
+const CalendarView = ({ view, setView, currentDate, setCurrentDate, requests, users, holidays, filterDepartment, setFilterDepartment, filterUser, setFilterUser, departments, getUserDepartments, onRequestClick }) => {
   const deptNames = departments.map(d => d.name);
   const filteredRequests = requests.filter(r => {
     if (r.status !== 'approved' && r.status !== 'pending') return false;
@@ -413,14 +427,14 @@ const CalendarView = ({ view, setView, currentDate, setCurrentDate, requests, us
         </div>
       </div>
       <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg"><span className="font-medium">Leyenda:</span><span>✅ Aprobado</span><span>🔄 Turno</span><span>⏳ Pendiente</span><span>❌ Denegado</span><span>⚠️ Día especial</span></div>
-      {view === 'month' && <MonthCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
-      {view === 'week' && <WeekCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
-      {view === 'year' && <YearCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} />}
+      {view === 'month' && <MonthCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} onRequestClick={onRequestClick} />}
+      {view === 'week' && <WeekCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} onRequestClick={onRequestClick} />}
+      {view === 'year' && <YearCalendar currentDate={currentDate} setCurrentDate={setCurrentDate} requests={filteredRequests} users={users} holidays={holidays} departments={departments} getUserDepartments={getUserDepartments} onRequestClick={onRequestClick} />}
     </div>
   );
 };
 
-const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments }) => {
+const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments, onRequestClick }) => {
   const year = currentDate.getFullYear(), month = currentDate.getMonth();
   const firstDay = new Date(year, month, 1);
   let startDay = firstDay.getDay() - 1; if (startDay === -1) startDay = 6;
@@ -510,7 +524,7 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
                 </div>
                 {holiday && !holiday.isTurno && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.emoji || (holiday.isLocal ? '🎉' : '🏢')} {holiday.name}</div>}
                 <div className="space-y-1">
-                  {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}
+                  {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} onRequestClick={onRequestClick} />)}
                   {dayReqs.length > 3 && <div className="text-xs text-gray-500 cursor-pointer">+{dayReqs.length - 3} más</div>}
                 </div>
                 {/* Hover tooltip */}
@@ -522,7 +536,11 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
                         const user = users.find(u => u.code === req.userCode);
                         const depts = getUserDepartments(user);
                         return (
-                          <div key={i} className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(depts)}`}>
+                          <div
+                            key={i}
+                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(depts)} ${onRequestClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                            onClick={() => onRequestClick && onRequestClick(req)}
+                          >
                             <span>{req.status === 'approved' ? '✅' : '⏳'}</span>
                             <span className="font-medium">{user?.name} {user?.lastName}</span>
                           </div>
@@ -540,7 +558,7 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
   );
 };
 
-const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments }) => {
+const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments, onRequestClick }) => {
   const startOfWeek = new Date(currentDate);
   const day = startOfWeek.getDay();
   startOfWeek.setDate(currentDate.getDate() + (day === 0 ? -6 : 1 - day));
@@ -594,7 +612,7 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
               <div className={`font-semibold mb-2 text-xs ${isToday ? 'text-blue-600' : ''}`}>{date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</div>
               {holiday && !holiday.isTurno && <div className={`text-xs mb-2 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.emoji || (holiday.isLocal ? '🎉' : '🏢')} {holiday.name}</div>}
               {holiday && holiday.isTurno && <div className="text-xs mb-2 text-yellow-600" title={holiday.name}>{holiday.emoji || '🔄'}</div>}
-              <div className="space-y-1">{dayReqs.map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}</div>
+              <div className="space-y-1">{dayReqs.map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} onRequestClick={onRequestClick} />)}</div>
             </div>
           );
         })}
@@ -603,7 +621,7 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
   );
 };
 
-const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments }) => {
+const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, departments, getUserDepartments, onRequestClick }) => {
   const year = currentDate.getFullYear();
   const [hoveredDay, setHoveredDay] = useState(null);
   const monthNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -845,7 +863,11 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                             <div className="text-xs font-semibold mb-2 text-gray-700">{date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
                             <div className="space-y-1">
                               {usersOnDay.map((item, idx) => (
-                                <div key={idx} className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(item.depts)}`}>
+                                <div
+                                  key={idx}
+                                  className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(item.depts)} ${onRequestClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                                  onClick={() => onRequestClick && onRequestClick(item.request)}
+                                >
                                   <span>{item.request.status !== 'approved' ? '⏳' : item.request.type === 'other' ? '⚠️' : item.request.type === 'turno' ? '🔄' : '✅'}</span>
                                   <span className="font-medium">{item.user?.name} {item.user?.lastName}</span>
                                 </div>
@@ -3196,30 +3218,20 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
   };
 
   const handleAddTimeclockForDay = async (userCode, date) => {
-    const user = users.find(u => u.code === userCode);
-    const defaultSchedule = {
-      lunes: { entrada: '08:00', salida: '17:00' },
-      martes: { entrada: '08:00', salida: '17:00' },
-      miercoles: { entrada: '08:00', salida: '17:00' },
-      jueves: { entrada: '08:00', salida: '17:00' },
-      viernes: { entrada: '08:00', salida: '15:00' }
-    };
-    const schedule = user?.schedule || defaultSchedule;
-    const dayOfWeek = new Date(date + 'T00:00:00').getDay();
-    const dayMap = { 1: 'lunes', 2: 'martes', 3: 'miercoles', 4: 'jueves', 5: 'viernes' };
-    const dayKey = dayMap[dayOfWeek];
-    const daySchedule = schedule[dayKey] || { entrada: '08:00', salida: '17:00' };
-
     await addTimeclockRecord({
       userCode,
       date,
-      startTime: daySchedule.entrada,
-      endTime: daySchedule.salida,
+      startTime: '00:00',
+      endTime: null,
       breaks: [],
       createdAt: new Date().toISOString(),
       manualEntry: true
     });
-    showNotification('success', 'Fichaje añadido manualmente');
+    // Navigate to records tab with date and user selected
+    setSelectedDate(date);
+    setSelectedUser(userCode);
+    setActiveAdminTab('registros');
+    showNotification('info', 'Edita el fichaje con los horarios correctos');
   };
 
   const handleSaveGps = async () => {
