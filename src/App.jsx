@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.10)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.11)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.10)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.11)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2346,7 +2346,7 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
 };
 
 // ==================== WEEKLY STATS TABLE ====================
-const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays }) => {
+const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick }) => {
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Get week dates based on offset (0 = current week, -1 = last week, etc.) - ONLY Mon-Fri
@@ -2366,7 +2366,18 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
     return dates;
   };
 
+  // Get ISO week number
+  const getWeekNumber = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  };
+
   const weekDates = getWeekDates();
+  const weekNumber = getWeekNumber(weekDates[0]);
   const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 
   // Calculate break duration in minutes
@@ -2430,7 +2441,10 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
         >
           <ChevronLeft className="w-4 h-4" /> Semana anterior
         </button>
-        <h3 className="text-lg font-semibold capitalize">{getMonthYear()}</h3>
+        <div className="text-center">
+          <h3 className="text-lg font-semibold capitalize">{getMonthYear()}</h3>
+          <span className="text-sm text-gray-500">Semana {weekNumber}</span>
+        </div>
         <button
           onClick={() => setWeekOffset(weekOffset + 1)}
           className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
@@ -2530,15 +2544,30 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
 
                     if (cellContent) return <React.Fragment key={`${user.code}-${date}`}>{cellContent}</React.Fragment>;
 
+                    const handleClick = () => onCellClick && onCellClick(date, user.code);
+                    const clickableClass = onCellClick ? 'cursor-pointer hover:bg-gray-100' : '';
+
                     return (
                       <React.Fragment key={`${user.code}-${date}`}>
-                        <td className={`p-1 border text-center ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'}`}>
+                        <td
+                          className={`p-1 border text-center ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'} ${clickableClass}`}
+                          onClick={handleClick}
+                          title="Clic para ver registro"
+                        >
                           {record?.endTime ? formatMinutes(workedMins) : (record?.startTime ? '...' : '-')}
                         </td>
-                        <td className="p-1 border text-center text-xs text-orange-600">
+                        <td
+                          className={`p-1 border text-center text-xs text-orange-600 ${clickableClass}`}
+                          onClick={handleClick}
+                          title="Clic para ver registro"
+                        >
                           {formatMinutes(breakfastMins)}
                         </td>
-                        <td className="p-1 border text-center text-xs text-blue-600">
+                        <td
+                          className={`p-1 border text-center text-xs text-blue-600 ${clickableClass}`}
+                          onClick={handleClick}
+                          title="Clic para ver registro"
+                        >
                           {formatMinutes(lunchMins)}
                         </td>
                       </React.Fragment>
@@ -2672,6 +2701,11 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
           calculateWorkedTime={calculateWorkedTime}
           requests={requests}
           holidays={holidays}
+          onCellClick={(date, userCode) => {
+            setSelectedDate(date);
+            setSelectedUser(userCode);
+            setActiveAdminTab('registros');
+          }}
         />
       )}
 
