@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.12)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.13)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.12)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.13)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2358,8 +2358,10 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
 };
 
 // ==================== WEEKLY STATS TABLE ====================
-const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick }) => {
-  const [weekOffset, setWeekOffset] = useState(0);
+const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick, weekOffset: externalWeekOffset, setWeekOffset: externalSetWeekOffset }) => {
+  const [internalWeekOffset, setInternalWeekOffset] = useState(0);
+  const weekOffset = externalWeekOffset !== undefined ? externalWeekOffset : internalWeekOffset;
+  const setWeekOffset = externalSetWeekOffset || setInternalWeekOffset;
 
   // Get week dates based on offset (0 = current week, -1 = last week, etc.) - ONLY Mon-Fri
   const getWeekDates = () => {
@@ -2615,13 +2617,306 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
   );
 };
 
+// ==================== YEARLY STATS TABLE ====================
+const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeekClick }) => {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Get all weeks of the year with their date ranges
+  const getWeeksOfYear = (year) => {
+    const weeks = [];
+    const firstDay = new Date(year, 0, 1);
+    // Find first Monday
+    let firstMonday = new Date(firstDay);
+    const dayOfWeek = firstMonday.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 1 : (dayOfWeek === 1 ? 0 : 8 - dayOfWeek);
+    firstMonday.setDate(firstMonday.getDate() + daysToMonday);
+
+    let currentMonday = new Date(firstMonday);
+    let weekNum = 1;
+
+    while (currentMonday.getFullYear() === year || (currentMonday.getFullYear() === year - 1 && weekNum === 1)) {
+      const weekStart = new Date(currentMonday);
+      const weekEnd = new Date(currentMonday);
+      weekEnd.setDate(weekEnd.getDate() + 4); // Friday
+
+      if (weekStart.getFullYear() > year) break;
+
+      weeks.push({
+        weekNum,
+        startDate: weekStart.toISOString().split('T')[0],
+        endDate: weekEnd.toISOString().split('T')[0],
+        month: weekStart.getMonth()
+      });
+
+      currentMonday.setDate(currentMonday.getDate() + 7);
+      weekNum++;
+      if (weekNum > 53) break;
+    }
+    return weeks;
+  };
+
+  const weeks = getWeeksOfYear(selectedYear);
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  // Group weeks by month for header
+  const getMonthSpans = () => {
+    const spans = [];
+    let currentMonth = -1;
+    let count = 0;
+
+    weeks.forEach((week, idx) => {
+      if (week.month !== currentMonth) {
+        if (count > 0) {
+          spans.push({ month: currentMonth, count });
+        }
+        currentMonth = week.month;
+        count = 1;
+      } else {
+        count++;
+      }
+      if (idx === weeks.length - 1) {
+        spans.push({ month: currentMonth, count });
+      }
+    });
+    return spans;
+  };
+
+  const monthSpans = getMonthSpans();
+
+  // Calculate break duration in minutes
+  const getBreakMinutes = (record, breakType) => {
+    if (!record?.breaks) return 0;
+    const brk = record.breaks.find(b => b.type === breakType);
+    if (!brk || !brk.startTime || !brk.endTime) return 0;
+    const start = new Date(`2000-01-01T${brk.startTime}`);
+    const end = new Date(`2000-01-01T${brk.endTime}`);
+    return Math.floor((end - start) / 60000);
+  };
+
+  // Get stats for a user in a specific week
+  const getWeekStats = (userCode, week) => {
+    const weekRecords = timeclockRecords.filter(r => {
+      if (r.userCode !== userCode) return false;
+      return r.date >= week.startDate && r.date <= week.endDate;
+    });
+
+    let workedMins = 0;
+    let breakfastMins = 0;
+    let lunchMins = 0;
+
+    weekRecords.forEach(r => {
+      if (r.endTime) {
+        const worked = calculateWorkedTime(r);
+        workedMins += worked.hours * 60 + worked.minutes;
+        breakfastMins += getBreakMinutes(r, 'desayuno');
+        lunchMins += getBreakMinutes(r, 'comida');
+      }
+    });
+
+    return { workedMins, breakfastMins, lunchMins };
+  };
+
+  const formatMinutes = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    return `${h}h${m > 0 ? `${m}m` : ''}`;
+  };
+
+  const formatHours = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}:${String(m).padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Year selector */}
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setSelectedYear(selectedYear - 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+        >
+          <ChevronLeft className="w-4 h-4" /> {selectedYear - 1}
+        </button>
+        <h3 className="text-xl font-bold">{selectedYear}</h3>
+        <button
+          onClick={() => setSelectedYear(selectedYear + 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+          disabled={selectedYear >= currentYear}
+        >
+          {selectedYear + 1} <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Yearly table */}
+      <div className="relative">
+        <div className="overflow-x-auto" style={{ marginRight: '150px' }}>
+          <table className="border-collapse text-xs">
+            <thead>
+              {/* Month row */}
+              <tr className="bg-indigo-700 text-white">
+                <th className="p-2 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20 min-w-[140px]" rowSpan={3}>
+                  Empleado
+                </th>
+                {monthSpans.map((span, idx) => (
+                  <th
+                    key={idx}
+                    colSpan={span.count * 3}
+                    className="p-1 border border-indigo-600 text-center font-bold"
+                  >
+                    {monthNames[span.month]}
+                  </th>
+                ))}
+              </tr>
+              {/* Week numbers row */}
+              <tr className="bg-indigo-600 text-white">
+                {weeks.map((week) => (
+                  <th
+                    key={week.weekNum}
+                    colSpan={3}
+                    className="p-1 border border-indigo-500 text-center cursor-pointer hover:bg-indigo-500"
+                    onClick={() => onWeekClick && onWeekClick(week.weekNum, week.startDate)}
+                    title={`Semana ${week.weekNum}: ${week.startDate} - ${week.endDate}`}
+                  >
+                    S{week.weekNum}
+                  </th>
+                ))}
+              </tr>
+              {/* Sub-headers row */}
+              <tr className="bg-indigo-100 text-indigo-800">
+                {weeks.map((week) => (
+                  <React.Fragment key={`sub-${week.weekNum}`}>
+                    <th className="p-1 border text-center" style={{ minWidth: '35px' }}>T</th>
+                    <th className="p-1 border text-center" style={{ minWidth: '35px' }}>D</th>
+                    <th className="p-1 border text-center" style={{ minWidth: '35px' }}>C</th>
+                  </React.Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {users.filter(u => !u.isAdmin).map(user => {
+                let yearWorkedMins = 0;
+                let yearBreakfastMins = 0;
+                let yearLunchMins = 0;
+
+                const weekCells = weeks.map(week => {
+                  const stats = getWeekStats(user.code, week);
+                  yearWorkedMins += stats.workedMins;
+                  yearBreakfastMins += stats.breakfastMins;
+                  yearLunchMins += stats.lunchMins;
+
+                  return (
+                    <React.Fragment key={`${user.code}-${week.weekNum}`}>
+                      <td
+                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-green-700"
+                        onClick={() => onWeekClick && onWeekClick(week.weekNum, week.startDate)}
+                      >
+                        {formatHours(stats.workedMins)}
+                      </td>
+                      <td
+                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-orange-600"
+                        onClick={() => onWeekClick && onWeekClick(week.weekNum, week.startDate)}
+                      >
+                        {formatMinutes(stats.breakfastMins)}
+                      </td>
+                      <td
+                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-blue-600"
+                        onClick={() => onWeekClick && onWeekClick(week.weekNum, week.startDate)}
+                      >
+                        {formatMinutes(stats.lunchMins)}
+                      </td>
+                    </React.Fragment>
+                  );
+                });
+
+                return (
+                  <tr key={user.code} className="hover:bg-gray-50">
+                    <td className="p-2 border font-medium sticky left-0 bg-white z-10 min-w-[140px]">
+                      {user.name} {user.lastName}
+                    </td>
+                    {weekCells}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Fixed totals on the right */}
+        <div className="absolute top-0 right-0 bg-white border-l-2 border-indigo-300 shadow-lg" style={{ width: '150px' }}>
+          <table className="border-collapse text-xs w-full">
+            <thead>
+              <tr className="bg-indigo-800 text-white">
+                <th colSpan={3} className="p-2 border border-indigo-700 text-center" style={{ height: '37px' }}>
+                  Total Anual
+                </th>
+              </tr>
+              <tr className="bg-indigo-600 text-white">
+                <th colSpan={3} className="p-1 border border-indigo-500 text-center" style={{ height: '29px' }}>
+                  {selectedYear}
+                </th>
+              </tr>
+              <tr className="bg-indigo-200 text-indigo-800">
+                <th className="p-1 border text-center" style={{ width: '50px' }}>T</th>
+                <th className="p-1 border text-center" style={{ width: '50px' }}>D</th>
+                <th className="p-1 border text-center" style={{ width: '50px' }}>C</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.filter(u => !u.isAdmin).map(user => {
+                let yearWorkedMins = 0;
+                let yearBreakfastMins = 0;
+                let yearLunchMins = 0;
+
+                weeks.forEach(week => {
+                  const stats = getWeekStats(user.code, week);
+                  yearWorkedMins += stats.workedMins;
+                  yearBreakfastMins += stats.breakfastMins;
+                  yearLunchMins += stats.lunchMins;
+                });
+
+                return (
+                  <tr key={user.code} className="bg-indigo-50">
+                    <td className="p-1 border text-center font-bold text-green-700" style={{ height: '33px' }}>
+                      {formatHours(yearWorkedMins)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-orange-600">
+                      {formatMinutes(yearBreakfastMins)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-blue-600">
+                      {formatMinutes(yearLunchMins)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs text-gray-600 mt-4">
+        <span><span className="text-green-700 font-medium">T</span> = Horas trabajadas</span>
+        <span><span className="text-orange-600">D</span> = Pausa desayuno</span>
+        <span><span className="text-blue-600">C</span> = Pausa comida</span>
+        <span className="text-gray-500">Click en semana para ver detalle</span>
+      </div>
+    </div>
+  );
+};
+
 // ==================== ADMIN VIEW ====================
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
+  const [activeAdminTab, setActiveAdminTab] = useState('semanal');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
   const [editingRecord, setEditingRecord] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // GPS Settings state
   const [gpsForm, setGpsForm] = useState({
@@ -2686,10 +2981,16 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
       {/* Admin sub-tabs */}
       <div className="flex space-x-2 border-b pb-2">
         <button
-          onClick={() => setActiveAdminTab('estadisticas')}
-          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'estadisticas' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          onClick={() => setActiveAdminTab('semanal')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'semanal' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
-          Estadísticas
+          Semanal
+        </button>
+        <button
+          onClick={() => setActiveAdminTab('anual')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'anual' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Anual
         </button>
         <button
           onClick={() => setActiveAdminTab('registros')}
@@ -2705,18 +3006,39 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
         </button>
       </div>
 
-      {/* Stats Tab */}
-      {activeAdminTab === 'estadisticas' && (
+      {/* Weekly Stats Tab */}
+      {activeAdminTab === 'semanal' && (
         <WeeklyStatsTable
           timeclockRecords={timeclockRecords}
           users={users}
           calculateWorkedTime={calculateWorkedTime}
           requests={requests}
           holidays={holidays}
+          weekOffset={weekOffset}
+          setWeekOffset={setWeekOffset}
           onCellClick={(date, userCode) => {
             setSelectedDate(date);
             setSelectedUser(userCode);
             setActiveAdminTab('registros');
+          }}
+        />
+      )}
+
+      {/* Yearly Stats Tab */}
+      {activeAdminTab === 'anual' && (
+        <YearlyStatsTable
+          timeclockRecords={timeclockRecords}
+          users={users}
+          calculateWorkedTime={calculateWorkedTime}
+          onWeekClick={(weekNum, startDate) => {
+            // Calculate week offset from current week
+            const today = new Date();
+            const targetDate = new Date(startDate + 'T00:00:00');
+            const diffTime = targetDate - today;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const diffWeeks = Math.floor(diffDays / 7);
+            setWeekOffset(diffWeeks);
+            setActiveAdminTab('semanal');
           }}
         />
       )}
