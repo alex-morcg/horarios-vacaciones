@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.18)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.19)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.18)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.19)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2138,6 +2138,17 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
     const now = new Date();
     const timeStr = now.toTimeString().slice(0, 5);
 
+    // Get device info
+    const userAgent = navigator.userAgent;
+    let ipAddress = null;
+    try {
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipRes.json();
+      ipAddress = ipData.ip;
+    } catch (e) {
+      console.log('Could not get IP');
+    }
+
     if (action === 'start') {
       await addTimeclockRecord({
         userCode: currentUser.code,
@@ -2145,7 +2156,12 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
         startTime: timeStr,
         breaks: [],
         endTime: null,
-        createdAt: now.toISOString()
+        createdAt: now.toISOString(),
+        deviceInfo: {
+          userAgent,
+          ip: ipAddress,
+          timestamp: now.toISOString()
+        }
       });
       showNotification('success', `Jornada iniciada a las ${timeStr}`);
     } else if (todayRecord) {
@@ -3394,6 +3410,12 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
                           {record.breaks?.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
                               Pausas: {record.breaks.map(b => `${b.type} (${b.startTime}-${b.endTime || '...'})`).join(', ')}
+                            </div>
+                          )}
+                          {record.deviceInfo && (
+                            <div className="text-xs text-gray-400 mt-1 font-mono">
+                              📱 {record.deviceInfo.userAgent?.substring(0, 80)}{record.deviceInfo.userAgent?.length > 80 ? '...' : ''}
+                              {record.deviceInfo.ip && <span className="ml-2">| IP: {record.deviceInfo.ip}</span>}
                             </div>
                           )}
                         </div>
