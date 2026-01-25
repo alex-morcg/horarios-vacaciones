@@ -2343,9 +2343,170 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
   );
 };
 
+// ==================== WEEKLY STATS TABLE ====================
+const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime }) => {
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Get week dates based on offset (0 = current week, -1 = last week, etc.)
+  const getWeekDates = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  };
+
+  const weekDates = getWeekDates();
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  // Calculate break duration in minutes
+  const getBreakMinutes = (record, breakType) => {
+    if (!record?.breaks) return 0;
+    const brk = record.breaks.find(b => b.type === breakType);
+    if (!brk || !brk.startTime || !brk.endTime) return 0;
+    const start = new Date(`2000-01-01T${brk.startTime}`);
+    const end = new Date(`2000-01-01T${brk.endTime}`);
+    return Math.floor((end - start) / 60000);
+  };
+
+  const formatMinutes = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+  };
+
+  // Get record for user on specific date
+  const getRecord = (userCode, date) => {
+    return timeclockRecords.find(r => r.userCode === userCode && r.date === date);
+  };
+
+  const formatDateHeader = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.getDate();
+  };
+
+  const getMonthYear = () => {
+    const d = new Date(weekDates[0] + 'T00:00:00');
+    return d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Week navigation */}
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setWeekOffset(weekOffset - 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+        >
+          <ChevronLeft className="w-4 h-4" /> Semana anterior
+        </button>
+        <h3 className="text-lg font-semibold capitalize">{getMonthYear()}</h3>
+        <button
+          onClick={() => setWeekOffset(weekOffset + 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+          disabled={weekOffset >= 0}
+        >
+          Semana siguiente <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Weekly table */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            {/* Day names row */}
+            <tr className="bg-indigo-600 text-white">
+              <th className="p-2 border border-indigo-500 text-left sticky left-0 bg-indigo-600 z-10" rowSpan={2}>
+                Empleado
+              </th>
+              {weekDates.map((date, idx) => (
+                <th key={date} colSpan={3} className={`p-2 border border-indigo-500 text-center ${idx >= 5 ? 'bg-indigo-700' : ''}`}>
+                  {dayNames[idx]} {formatDateHeader(date)}
+                </th>
+              ))}
+              <th className="p-2 border border-indigo-500 text-center bg-indigo-800" rowSpan={2}>
+                Total
+              </th>
+            </tr>
+            {/* Sub-headers row */}
+            <tr className="bg-indigo-100 text-indigo-800 text-xs">
+              {weekDates.map((date, idx) => (
+                <React.Fragment key={`sub-${date}`}>
+                  <th className={`p-1 border text-center ${idx >= 5 ? 'bg-indigo-200' : ''}`} title="Horas trabajadas">Trab</th>
+                  <th className={`p-1 border text-center ${idx >= 5 ? 'bg-indigo-200' : ''}`} title="Pausa desayuno">Des</th>
+                  <th className={`p-1 border text-center ${idx >= 5 ? 'bg-indigo-200' : ''}`} title="Pausa comida">Com</th>
+                </React.Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {users.filter(u => !u.isAdmin).map(user => {
+              let totalWorkedMinutes = 0;
+
+              return (
+                <tr key={user.code} className="hover:bg-gray-50">
+                  <td className="p-2 border font-medium sticky left-0 bg-white z-10">
+                    {user.name} {user.lastName}
+                  </td>
+                  {weekDates.map((date, idx) => {
+                    const record = getRecord(user.code, date);
+                    const worked = record ? calculateWorkedTime(record) : { hours: 0, minutes: 0 };
+                    const workedMins = worked.hours * 60 + worked.minutes;
+                    const breakfastMins = getBreakMinutes(record, 'desayuno');
+                    const lunchMins = getBreakMinutes(record, 'comida');
+
+                    if (record?.endTime) totalWorkedMinutes += workedMins;
+
+                    const isWeekend = idx >= 5;
+                    const cellBg = isWeekend ? 'bg-gray-100' : '';
+
+                    return (
+                      <React.Fragment key={`${user.code}-${date}`}>
+                        <td className={`p-1 border text-center ${cellBg} ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'}`}>
+                          {record?.endTime ? formatMinutes(workedMins) : (record?.startTime ? '...' : '-')}
+                        </td>
+                        <td className={`p-1 border text-center text-xs ${cellBg} text-orange-600`}>
+                          {formatMinutes(breakfastMins)}
+                        </td>
+                        <td className={`p-1 border text-center text-xs ${cellBg} text-blue-600`}>
+                          {formatMinutes(lunchMins)}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
+                  <td className="p-2 border text-center font-bold text-indigo-600 bg-indigo-50">
+                    {formatMinutes(totalWorkedMinutes)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Legend */}
+      <div className="flex gap-4 text-xs text-gray-600">
+        <span><span className="text-green-700 font-medium">Trab</span> = Horas trabajadas</span>
+        <span><span className="text-orange-600">Des</span> = Pausa desayuno</span>
+        <span><span className="text-blue-600">Com</span> = Pausa comida</span>
+        <span><span className="text-gray-400">...</span> = En curso</span>
+      </div>
+    </div>
+  );
+};
+
 // ==================== ADMIN VIEW ====================
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime }) => {
-  console.log('TimeclockAdminView - timeclockRecords:', timeclockRecords?.length, 'users:', users?.length);
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
@@ -2405,40 +2566,6 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
   // Get records for selected date
   const dateRecords = filteredRecords.filter(r => r.date === selectedDate);
 
-  // Calculate stats
-  const getWeekStats = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    // Adjust for Sunday (0) - go back to previous Monday
-    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - daysToMonday);
-
-    const weekDates = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
-      weekDates.push(d.toISOString().split('T')[0]);
-    }
-    console.log('Week dates:', weekDates);
-
-    return users.filter(u => !u.isAdmin).map(user => {
-      const userRecords = timeclockRecords.filter(r => r.userCode === user.code && weekDates.includes(r.date));
-      let totalMinutes = 0;
-      userRecords.forEach(r => {
-        const worked = calculateWorkedTime(r);
-        totalMinutes += worked.hours * 60 + worked.minutes;
-      });
-      return {
-        user,
-        records: userRecords,
-        totalHours: Math.floor(totalMinutes / 60),
-        totalMinutes: totalMinutes % 60,
-        daysWorked: userRecords.filter(r => r.endTime).length
-      };
-    });
-  };
-
   const formatDate = (dateStr) => {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -2470,31 +2597,11 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
 
       {/* Stats Tab */}
       {activeAdminTab === 'estadisticas' && (
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold">Resumen semanal</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="text-left p-3 border">Empleado</th>
-                  <th className="text-center p-3 border">Días trabajados</th>
-                  <th className="text-center p-3 border">Horas totales</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getWeekStats().map(stat => (
-                  <tr key={stat.user.code} className="hover:bg-gray-50">
-                    <td className="p-3 border font-medium">{stat.user.name} {stat.user.lastName}</td>
-                    <td className="p-3 border text-center">{stat.daysWorked}</td>
-                    <td className="p-3 border text-center font-semibold text-indigo-600">
-                      {stat.totalHours}h {stat.totalMinutes}m
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <WeeklyStatsTable
+          timeclockRecords={timeclockRecords}
+          users={users}
+          calculateWorkedTime={calculateWorkedTime}
+        />
       )}
 
       {/* Records Tab */}
