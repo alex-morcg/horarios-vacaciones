@@ -258,7 +258,7 @@ const VacationManager = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.4)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.5)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -768,6 +768,18 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                           {date.getDate()}
                         </div>
 
+                        {/* Holiday indicator - below day number */}
+                        {holiday && isCurrentYear && (
+                          <div className="flex flex-col items-center mt-0.5">
+                            <span className="text-[10px] leading-none">
+                              {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
+                            </span>
+                            <span className={`text-[7px] font-bold text-center leading-tight truncate max-w-full ${holiday.isTurno ? 'text-yellow-700' : holiday.isLocal ? 'text-red-700' : 'text-purple-700'}`}>
+                              {holiday.name}
+                            </span>
+                          </div>
+                        )}
+
                         {/* User count badges - separated by status */}
                         {isCurrentYear && !weekend && (approvedCount > 0 || pendingCount > 0) && (
                           <div className="absolute bottom-0.5 right-0.5 flex gap-0.5">
@@ -781,18 +793,6 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                                 {pendingCount}
                               </div>
                             )}
-                          </div>
-                        )}
-
-                        {/* Holiday indicator */}
-                        {holiday && isCurrentYear && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-start pointer-events-none pt-4">
-                            <span className="text-[10px]">
-                              {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
-                            </span>
-                            <span className={`text-[8px] font-bold text-center leading-tight px-0.5 truncate max-w-full ${holiday.isTurno ? 'text-yellow-700' : holiday.isLocal ? 'text-red-700' : 'text-purple-700'}`}>
-                              {holiday.name}
-                            </span>
                           </div>
                         )}
 
