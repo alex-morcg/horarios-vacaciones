@@ -258,7 +258,7 @@ const VacationManager = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.2)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.3)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -769,7 +769,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                         </div>
 
                         {/* User count badges - separated by status */}
-                        {isCurrentYear && !weekend && !holiday && (approvedCount > 0 || pendingCount > 0) && (
+                        {isCurrentYear && !weekend && (approvedCount > 0 || pendingCount > 0) && (
                           <div className="absolute bottom-0.5 right-0.5 flex gap-0.5">
                             {approvedCount > 0 && (
                               <div className="bg-green-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
