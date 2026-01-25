@@ -1201,22 +1201,22 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
       {showForm && (
         <div className="bg-gray-50 p-6 rounded-lg space-y-4">
           <h3 className="text-lg font-semibold">{editingHoliday ? 'Editar' : 'Nuevo'} Día Especial</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="px-3 py-2 border rounded" />
             <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="px-3 py-2 border rounded" placeholder="Nombre" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Tipo de día</label>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="closure" checked={formData.holidayType === 'closure'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
                 <span>Día de cierre</span>
-                <span className="text-xs text-gray-500">(descuenta vacaciones)</span>
+                <span className="text-xs text-gray-500">(descuenta)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="turno" checked={formData.holidayType === 'turno'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
                 <span>Turno</span>
-                <span className="text-xs text-gray-500">(descuenta vacaciones)</span>
+                <span className="text-xs text-gray-500">(descuenta)</span>
               </label>
             </div>
           </div>
