@@ -2345,6 +2345,7 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
 
 // ==================== ADMIN VIEW ====================
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime }) => {
+  console.log('TimeclockAdminView - timeclockRecords:', timeclockRecords?.length, 'users:', users?.length);
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
