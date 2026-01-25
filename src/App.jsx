@@ -728,9 +728,17 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
 
                         {/* Holiday indicator */}
                         {holiday && isCurrentYear && (
-                          <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isTurno ? 'text-yellow-600' : holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>
-                            {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
-                          </div>
+                          holiday.isTurno || holiday.isLocal ? (
+                            <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isTurno ? 'text-yellow-600' : 'text-red-600'}`} title={holiday.name}>
+                              {holiday.emoji || (holiday.isTurno ? '🔄' : '🎉')}
+                            </div>
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <span className="text-[8px] font-bold text-purple-700 text-center leading-tight px-0.5 truncate max-w-full" title={holiday.name}>
+                                {holiday.name}
+                              </span>
+                            </div>
+                          )
                         )}
 
                         {/* Hover tooltip */}
