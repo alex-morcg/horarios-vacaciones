@@ -1181,10 +1181,9 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Filter only admin-added holidays (not local)
-  const adminHolidays = holidays.filter(h => h.isLocal !== true);
-  const currentHolidays = adminHolidays.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-  const pastHolidays = adminHolidays.filter(h => h.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  // Show all holidays
+  const currentHolidays = holidays.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const pastHolidays = holidays.filter(h => h.date < today).sort((a, b) => b.date.localeCompare(a.date));
 
   const getHolidayEmoji = (h) => {
     if (h.emoji) return h.emoji;
