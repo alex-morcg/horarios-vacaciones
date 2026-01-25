@@ -265,7 +265,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.13)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.14)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -300,7 +300,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.13)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.14)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -2911,7 +2911,8 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
 
 // ==================== ADMIN VIEW ====================
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState('semanal');
+  const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
+  const [statsSubTab, setStatsSubTab] = useState('semanal');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
   const [editingRecord, setEditingRecord] = useState(null);
@@ -2981,16 +2982,10 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
       {/* Admin sub-tabs */}
       <div className="flex space-x-2 border-b pb-2">
         <button
-          onClick={() => setActiveAdminTab('semanal')}
-          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'semanal' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          onClick={() => setActiveAdminTab('estadisticas')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'estadisticas' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
-          Semanal
-        </button>
-        <button
-          onClick={() => setActiveAdminTab('anual')}
-          className={`px-4 py-2 rounded-t-lg font-medium ${activeAdminTab === 'anual' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-        >
-          Anual
+          Estadísticas
         </button>
         <button
           onClick={() => setActiveAdminTab('registros')}
@@ -3006,41 +3001,62 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
         </button>
       </div>
 
-      {/* Weekly Stats Tab */}
-      {activeAdminTab === 'semanal' && (
-        <WeeklyStatsTable
-          timeclockRecords={timeclockRecords}
-          users={users}
-          calculateWorkedTime={calculateWorkedTime}
-          requests={requests}
-          holidays={holidays}
-          weekOffset={weekOffset}
-          setWeekOffset={setWeekOffset}
-          onCellClick={(date, userCode) => {
-            setSelectedDate(date);
-            setSelectedUser(userCode);
-            setActiveAdminTab('registros');
-          }}
-        />
-      )}
+      {/* Stats Tab with sub-tabs */}
+      {activeAdminTab === 'estadisticas' && (
+        <div className="space-y-4">
+          {/* Sub-tabs: Semanal / Anual */}
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setStatsSubTab('semanal')}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'semanal' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+            >
+              Semanal
+            </button>
+            <button
+              onClick={() => setStatsSubTab('anual')}
+              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'anual' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+            >
+              Anual
+            </button>
+          </div>
 
-      {/* Yearly Stats Tab */}
-      {activeAdminTab === 'anual' && (
-        <YearlyStatsTable
-          timeclockRecords={timeclockRecords}
-          users={users}
-          calculateWorkedTime={calculateWorkedTime}
-          onWeekClick={(weekNum, startDate) => {
-            // Calculate week offset from current week
-            const today = new Date();
-            const targetDate = new Date(startDate + 'T00:00:00');
-            const diffTime = targetDate - today;
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            const diffWeeks = Math.floor(diffDays / 7);
-            setWeekOffset(diffWeeks);
-            setActiveAdminTab('semanal');
-          }}
-        />
+          {/* Weekly Stats */}
+          {statsSubTab === 'semanal' && (
+            <WeeklyStatsTable
+              timeclockRecords={timeclockRecords}
+              users={users}
+              calculateWorkedTime={calculateWorkedTime}
+              requests={requests}
+              holidays={holidays}
+              weekOffset={weekOffset}
+              setWeekOffset={setWeekOffset}
+              onCellClick={(date, userCode) => {
+                setSelectedDate(date);
+                setSelectedUser(userCode);
+                setActiveAdminTab('registros');
+              }}
+            />
+          )}
+
+          {/* Yearly Stats */}
+          {statsSubTab === 'anual' && (
+            <YearlyStatsTable
+              timeclockRecords={timeclockRecords}
+              users={users}
+              calculateWorkedTime={calculateWorkedTime}
+              onWeekClick={(weekNum, startDate) => {
+                // Calculate week offset from current week
+                const today = new Date();
+                const targetDate = new Date(startDate + 'T00:00:00');
+                const diffTime = targetDate - today;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffWeeks = Math.floor(diffDays / 7);
+                setWeekOffset(diffWeeks);
+                setStatsSubTab('semanal');
+              }}
+            />
+          )}
+        </div>
       )}
 
       {/* Records Tab */}
