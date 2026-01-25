@@ -258,7 +258,7 @@ const VacationManager = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Calendar className="w-8 h-8" />
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.3)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.4)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -786,7 +786,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
 
                         {/* Holiday indicator */}
                         {holiday && isCurrentYear && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-3">
+                          <div className="absolute inset-0 flex flex-col items-center justify-start pointer-events-none pt-4">
                             <span className="text-[10px]">
                               {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
                             </span>
