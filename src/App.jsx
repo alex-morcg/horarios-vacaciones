@@ -811,19 +811,29 @@ const DepartmentsManagement = ({ departments, addDepartment, updateDepartment, d
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {departments.map(dept => (
-          <div key={dept.id} className="border rounded-lg p-4 bg-white hover:shadow-md">
-            <div className="flex justify-between items-start mb-3">
-              <div className={`px-3 py-1 rounded font-semibold ${dept.color}`}>{dept.name}</div>
-              <div className="flex space-x-1">
-                <button onClick={() => { setEditingDept(dept); setFormData({ name: dept.name, color: dept.color }); setShowForm(true); }} className="text-blue-600 p-1"><Eye className="w-4 h-4" /></button>
-                <button onClick={() => { if (users.filter(u => getUserDepartments(u).includes(dept.name)).length > 0) showNotification('error', 'Tiene usuarios'); else deleteDepartment(dept.id); }} className="text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {departments.map(dept => {
+          const deptUsers = users.filter(u => getUserDepartments(u).includes(dept.name));
+          return (
+            <div key={dept.id} className="border rounded-lg p-4 bg-white hover:shadow-md">
+              <div className="flex justify-between items-start mb-3">
+                <div className={`px-3 py-1 rounded font-semibold ${dept.color}`}>{dept.name}</div>
+                <div className="flex space-x-1">
+                  <button onClick={() => { setEditingDept(dept); setFormData({ name: dept.name, color: dept.color }); setShowForm(true); }} className="text-blue-600 p-1"><Eye className="w-4 h-4" /></button>
+                  <button onClick={() => { if (deptUsers.length > 0) showNotification('error', 'Tiene usuarios'); else deleteDepartment(dept.id); }} className="text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
+              <p className="text-sm text-gray-600 mb-2">{deptUsers.length} empleados</p>
+              {deptUsers.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {deptUsers.map(u => (
+                    <span key={u.code} className="text-xs bg-gray-100 px-2 py-1 rounded">{u.name} {u.lastName}</span>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className="text-sm text-gray-600">{users.filter(u => getUserDepartments(u).includes(dept.name)).length} empleados</p>
-          </div>
-        ))}
+          );
+        })}
         {departments.length === 0 && <div className="col-span-full text-center py-12 text-gray-500">No hay departamentos</div>}
       </div>
     </div>
