@@ -376,15 +376,18 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const today = new Date();
   const isToday = (day) => day && today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+  const [hoveredDay, setHoveredDay] = useState(null);
 
   // Local holidays month-day patterns
   const localHolidayMonthDays = new Set([
     '01-01', '01-06', '04-03', '04-06', '03-26', '03-29', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'
   ]);
 
+  const getDateStr = (day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
   const getRequestsForDate = (day) => {
     if (!day) return [];
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateStr = getDateStr(day);
     return requests.filter(r => {
       if (r.isRange) return dateStr >= r.startDate && dateStr <= r.endDate && new Date(dateStr).getDay() !== 0 && new Date(dateStr).getDay() !== 6 && !holidays.some(h => h.date === dateStr);
       return r.dates?.includes(dateStr);
@@ -393,7 +396,7 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
 
   const getHolidayInfo = (day) => {
     if (!day) return null;
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateStr = getDateStr(day);
     const holiday = holidays.find(h => h.date === dateStr);
     if (!holiday) return null;
     const monthDay = dateStr.slice(5);
@@ -408,6 +411,25 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
     return 'bg-purple-50';
   };
 
+  const getDeptBgClass = (depts) => {
+    if (!depts || depts.length === 0) return 'bg-gray-100';
+    const dept = departments.find(d => d.name === depts[0]);
+    if (!dept) return 'bg-gray-100';
+    const colorMap = {
+      'bg-blue-100 text-blue-800': 'bg-blue-200',
+      'bg-purple-100 text-purple-800': 'bg-purple-200',
+      'bg-green-100 text-green-800': 'bg-green-200',
+      'bg-yellow-100 text-yellow-800': 'bg-yellow-200',
+      'bg-orange-100 text-orange-800': 'bg-orange-200',
+      'bg-red-100 text-red-800': 'bg-red-200',
+      'bg-pink-100 text-pink-800': 'bg-pink-200',
+      'bg-teal-100 text-teal-800': 'bg-teal-200',
+      'bg-indigo-100 text-indigo-800': 'bg-indigo-200',
+      'bg-gray-100 text-gray-800': 'bg-gray-200',
+    };
+    return colorMap[dept.color] || 'bg-gray-200';
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -420,16 +442,42 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
         {days.map((day, idx) => {
           const dayReqs = getRequestsForDate(day);
           const holiday = getHolidayInfo(day);
+          const dateStr = day ? getDateStr(day) : null;
           return (
-            <div key={idx} className={`min-h-20 border rounded p-1 ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holiday ? getHolidayBgClass(holiday) : 'bg-white'}`}>
+            <div
+              key={idx}
+              className={`min-h-20 border rounded p-1 relative ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holiday ? getHolidayBgClass(holiday) : 'bg-white'}`}
+              onMouseEnter={() => dayReqs.length > 3 && setHoveredDay(dateStr)}
+              onMouseLeave={() => setHoveredDay(null)}
+            >
               {day && <>
-                <div className={`font-semibold text-xs mb-1 ${isToday(day) ? 'text-blue-600' : ''}`}>{day}</div>
+                <div className={`font-semibold text-xs mb-1 flex items-center gap-1 ${isToday(day) ? 'text-blue-600' : ''}`}>
+                  {day}
+                  {holiday && holiday.isTurno && <span title={holiday.name}>{holiday.emoji || '🔄'}</span>}
+                </div>
                 {holiday && !holiday.isTurno && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.emoji || (holiday.isLocal ? '🎉' : '🏢')} {holiday.name}</div>}
-                {holiday && holiday.isTurno && <div className="text-xs mb-1 text-yellow-600" title={holiday.name}>{holiday.emoji || '🔄'}</div>}
                 <div className="space-y-1">
                   {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}
-                  {dayReqs.length > 3 && <div className="text-xs text-gray-500">+{dayReqs.length - 3}</div>}
+                  {dayReqs.length > 3 && <div className="text-xs text-gray-500 cursor-pointer">+{dayReqs.length - 3} más</div>}
                 </div>
+                {/* Hover tooltip */}
+                {hoveredDay === dateStr && dayReqs.length > 3 && (
+                  <div className="absolute z-50 left-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-2 min-w-[180px]">
+                    <div className="text-xs font-semibold mb-2 text-gray-700">{new Date(year, month, day).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                    <div className="space-y-1">
+                      {dayReqs.map((req, i) => {
+                        const user = users.find(u => u.code === req.userCode);
+                        const depts = getUserDepartments(user);
+                        return (
+                          <div key={i} className={`text-xs flex items-center gap-1 px-2 py-1 rounded ${getDeptBgClass(depts)}`}>
+                            <span>{req.status === 'approved' ? '✅' : '⏳'}</span>
+                            <span className="font-medium">{user?.name} {user?.lastName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </>}
             </div>
           );
