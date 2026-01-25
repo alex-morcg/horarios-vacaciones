@@ -103,7 +103,7 @@ const VacationManager = () => {
     const turnoDays = companyHolidays.filter(h => h.holidayType === 'turno');
 
     // Count days from user's own vacation requests
-    let usedOwn = 0, usedTurno = 0, waiting = 0;
+    let usedOwn = 0, waiting = 0;
 
     // Helper to get dates from a request
     const getRequestDates = (r) => {
@@ -122,14 +122,7 @@ const VacationManager = () => {
     };
 
     approved.forEach(r => {
-      const dates = getRequestDates(r);
-      dates.forEach(d => {
-        if (turnoDays.some(t => t.date === d)) {
-          usedTurno++;
-        } else {
-          usedOwn++;
-        }
-      });
+      usedOwn += getRequestDates(r).length;
     });
 
     pending.forEach(r => {
@@ -144,9 +137,15 @@ const VacationManager = () => {
       return hDate.getFullYear() === currentYear && !isWeekend(h.date);
     }).length;
 
-    const used = usedOwn + usedClosure + usedTurno;
+    // Count turno days (these are also deducted from everyone's balance)
+    const usedTurnoGlobal = turnoDays.filter(h => {
+      const hDate = new Date(h.date);
+      return hDate.getFullYear() === currentYear && !isWeekend(h.date);
+    }).length;
+
+    const used = usedOwn + usedClosure + usedTurnoGlobal;
     const total = user.totalDays || 0, carryOver = user.carryOverDays || 0;
-    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno };
+    return { total, used, pending: total + carryOver - used, waiting, available: total + carryOver - used - waiting, carryOver, usedOwn, usedClosure, usedTurno: usedTurnoGlobal };
   };
 
   // Firebase CRUD
@@ -156,7 +155,8 @@ const VacationManager = () => {
   const addRequest = async (r) => { await addDoc(collection(db, 'vacation_requests'), r); showNotification('success', 'Solicitud enviada'); };
   const updateRequest = async (id, r) => { await updateDoc(doc(db, 'vacation_requests', id), r); };
   const deleteRequest = async (id) => { await deleteDoc(doc(db, 'vacation_requests', id)); showNotification('success', 'Solicitud cancelada'); };
-  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: false, holidayType: h.holidayType || 'closure' }); showNotification('success', 'Festivo añadido'); };
+  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: false, holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo añadido'); };
+  const updateHoliday = async (id, h) => { await updateDoc(doc(db, 'vacation_holidays', id), { ...h, holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo actualizado'); };
   const deleteHoliday = async (id) => { await deleteDoc(doc(db, 'vacation_holidays', id)); showNotification('success', 'Festivo eliminado'); };
   const addDepartment = async (d) => { await addDoc(collection(db, 'vacation_departments'), d); showNotification('success', 'Departamento creado'); };
   const updateDepartment = async (id, d) => { await updateDoc(doc(db, 'vacation_departments', id), d); showNotification('success', 'Departamento actualizado'); };
@@ -216,7 +216,7 @@ const VacationManager = () => {
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} />}
             {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} />}
             {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} deleteRequest={deleteRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
-            {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
+            {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} />}
           </div>
@@ -366,8 +366,8 @@ const MonthCalendar = ({ currentDate, setCurrentDate, requests, users, holidays,
             <div key={idx} className={`min-h-20 border rounded p-1 ${!day ? 'bg-gray-50' : isToday(day) ? 'bg-blue-50 border-blue-400 border-2' : holiday ? getHolidayBgClass(holiday) : 'bg-white'}`}>
               {day && <>
                 <div className={`font-semibold text-xs mb-1 ${isToday(day) ? 'text-blue-600' : ''}`}>{day}</div>
-                {holiday && !holiday.isTurno && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
-                {holiday && holiday.isTurno && <div className="text-xs mb-1 text-yellow-600" title={holiday.name}>🔄</div>}
+                {holiday && !holiday.isTurno && <div className={`text-xs mb-1 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.emoji || (holiday.isLocal ? '🎉' : '🏢')} {holiday.name}</div>}
+                {holiday && holiday.isTurno && <div className="text-xs mb-1 text-yellow-600" title={holiday.name}>{holiday.emoji || '🔄'}</div>}
                 <div className="space-y-1">
                   {dayReqs.slice(0, 3).map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}
                   {dayReqs.length > 3 && <div className="text-xs text-gray-500">+{dayReqs.length - 3}</div>}
@@ -433,8 +433,8 @@ const WeekCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
           return (
             <div key={idx} className={`min-h-64 border rounded p-2 ${isToday ? 'bg-blue-50 border-blue-400 border-2' : weekend ? 'bg-gray-50' : holiday ? getHolidayBgClass(holiday) : 'bg-white'}`}>
               <div className={`font-semibold mb-2 text-xs ${isToday ? 'text-blue-600' : ''}`}>{date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</div>
-              {holiday && !holiday.isTurno && <div className={`text-xs mb-2 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.isLocal ? '🎉' : '🏢'} {holiday.name}</div>}
-              {holiday && holiday.isTurno && <div className="text-xs mb-2 text-yellow-600" title={holiday.name}>🔄</div>}
+              {holiday && !holiday.isTurno && <div className={`text-xs mb-2 truncate ${holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>{holiday.emoji || (holiday.isLocal ? '🎉' : '🏢')} {holiday.name}</div>}
+              {holiday && holiday.isTurno && <div className="text-xs mb-2 text-yellow-600" title={holiday.name}>{holiday.emoji || '🔄'}</div>}
               <div className="space-y-1">{dayReqs.map((req, i) => <RequestBadge key={i} req={req} user={users.find(u => u.code === req.userCode)} departments={departments} getUserDepartments={getUserDepartments} isTurnoDay={holiday?.isTurno} />)}</div>
             </div>
           );
@@ -671,7 +671,7 @@ const YearCalendar = ({ currentDate, setCurrentDate, requests, users, holidays, 
                         {/* Holiday indicator */}
                         {holiday && isCurrentYear && (
                           <div className={`absolute bottom-0.5 right-0.5 text-[10px] font-bold ${holiday.isTurno ? 'text-yellow-600' : holiday.isLocal ? 'text-red-600' : 'text-purple-600'}`} title={holiday.name}>
-                            {holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢'}
+                            {holiday.emoji || (holiday.isTurno ? '🔄' : holiday.isLocal ? '🎉' : '🏢')}
                           </div>
                         )}
 
@@ -1113,10 +1113,13 @@ const ApprovedRequestsSubTabs = ({ approvedCurrent, approvedPast, users, getReqD
   );
 };
 
-const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotification }) => {
+const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday, showNotification }) => {
   const [showForm, setShowForm] = useState(false);
+  const [editingHoliday, setEditingHoliday] = useState(null);
   const [activeTab, setActiveTab] = useState('current');
-  const [formData, setFormData] = useState({ date: '', name: '', holidayType: 'closure' });
+  const [formData, setFormData] = useState({ date: '', name: '', holidayType: 'closure', emoji: '🏢' });
+
+  const emojiOptions = ['🏢', '🔄', '🎄', '🎅', '🎁', '⭐', '🌟', '💼', '📅', '🗓️', '✨', '🎊', '🎈', '🏖️', '🌴', '☀️', '❄️', '🎃', '🐰', '💝'];
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -1126,6 +1129,7 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
   const pastHolidays = adminHolidays.filter(h => h.date < today).sort((a, b) => b.date.localeCompare(a.date));
 
   const getHolidayEmoji = (h) => {
+    if (h.emoji) return h.emoji;
     if (h.isLocal) return '🎉';
     if (h.holidayType === 'turno') return '🔄';
     return '🏢';
@@ -1139,40 +1143,49 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
 
   const handleSubmit = async () => {
     if (!formData.date || !formData.name) { showNotification('error', 'Completa todos los campos'); return; }
-    await addHoliday(formData);
-    setShowForm(false); setFormData({ date: '', name: '', holidayType: 'closure' });
+    if (editingHoliday) {
+      await updateHoliday(editingHoliday.id, formData);
+      setEditingHoliday(null);
+    } else {
+      await addHoliday(formData);
+    }
+    setShowForm(false); setFormData({ date: '', name: '', holidayType: 'closure', emoji: '🏢' });
   };
 
-  const renderTable = (holidayList, showDelete = true) => (
+  const startEdit = (h) => {
+    setEditingHoliday(h);
+    setFormData({ date: h.date, name: h.name, holidayType: h.holidayType || 'closure', emoji: h.emoji || getHolidayEmoji(h) });
+    setShowForm(true);
+  };
+
+  const renderTable = (holidayList, showActions = true) => (
     <table className="w-full">
       <thead className="bg-gray-100">
         <tr>
+          <th className="px-4 py-3 text-left">Emoji</th>
           <th className="px-4 py-3 text-left">Tipo</th>
           <th className="px-4 py-3 text-left">Fecha</th>
           <th className="px-4 py-3 text-left">Nombre</th>
-          {showDelete && <th className="px-4 py-3 text-left">Acciones</th>}
+          {showActions && <th className="px-4 py-3 text-left">Acciones</th>}
         </tr>
       </thead>
       <tbody>
         {holidayList.map(h => (
           <tr key={h.id} className="border-b">
-            <td className="px-4 py-3">
-              <span className="flex items-center gap-2">
-                <span>{getHolidayEmoji(h)}</span>
-                <span className="text-sm text-gray-600">{getHolidayTypeName(h)}</span>
-              </span>
-            </td>
+            <td className="px-4 py-3 text-xl">{getHolidayEmoji(h)}</td>
+            <td className="px-4 py-3 text-sm text-gray-600">{getHolidayTypeName(h)}</td>
             <td className="px-4 py-3">{h.date}</td>
             <td className="px-4 py-3">{h.name}</td>
-            {showDelete && (
-              <td className="px-4 py-3">
+            {showActions && (
+              <td className="px-4 py-3 flex gap-2">
+                <button onClick={() => startEdit(h)} className="text-blue-600"><Eye className="w-5 h-5" /></button>
                 <button onClick={() => deleteHoliday(h.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button>
               </td>
             )}
           </tr>
         ))}
         {holidayList.length === 0 && (
-          <tr><td colSpan={showDelete ? 4 : 3} className="px-4 py-8 text-center text-gray-500">No hay días</td></tr>
+          <tr><td colSpan={showActions ? 5 : 4} className="px-4 py-8 text-center text-gray-500">No hay días</td></tr>
         )}
       </tbody>
     </table>
@@ -1182,10 +1195,11 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Gestión de Días Especiales</h2>
-        <button onClick={() => setShowForm(true)} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nuevo</span></button>
+        <button onClick={() => { setEditingHoliday(null); setFormData({ date: '', name: '', holidayType: 'closure', emoji: '🏢' }); setShowForm(true); }} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nuevo</span></button>
       </div>
       {showForm && (
         <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+          <h3 className="text-lg font-semibold">{editingHoliday ? 'Editar' : 'Nuevo'} Día Especial</h3>
           <div className="grid grid-cols-2 gap-4">
             <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="px-3 py-2 border rounded" />
             <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="px-3 py-2 border rounded" placeholder="Nombre" />
@@ -1195,19 +1209,27 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, showNotificat
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="closure" checked={formData.holidayType === 'closure'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
-                <span>🏢 Día de cierre</span>
+                <span>Día de cierre</span>
                 <span className="text-xs text-gray-500">(descuenta vacaciones)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="turno" checked={formData.holidayType === 'turno'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value })} />
-                <span>🔄 Turno</span>
-                <span className="text-xs text-gray-500">(no descuenta)</span>
+                <span>Turno</span>
+                <span className="text-xs text-gray-500">(descuenta vacaciones)</span>
               </label>
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Emoji</label>
+            <div className="flex flex-wrap gap-2">
+              {emojiOptions.map(e => (
+                <button key={e} type="button" onClick={() => setFormData({ ...formData, emoji: e })} className={`text-2xl p-2 rounded border-2 ${formData.emoji === e ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-400'}`}>{e}</button>
+              ))}
+            </div>
+          </div>
           <div className="flex space-x-2">
-            <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">Añadir</button>
-            <button onClick={() => setShowForm(false)} className="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
+            <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">{editingHoliday ? 'Guardar' : 'Añadir'}</button>
+            <button onClick={() => { setShowForm(false); setEditingHoliday(null); }} className="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
           </div>
         </div>
       )}
