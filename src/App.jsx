@@ -2508,6 +2508,88 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
   );
 };
 
+// ==================== REFERENCIA TEÓRICA ====================
+// Valores teóricos por día para el empleado modelo
+const REFERENCIA_TEORICA = {
+  // Lunes a Jueves: 8h trabajo, 15min desayuno, 60min comida
+  weekday: {
+    workedMins: 480, // 8 horas
+    breakfastMins: 15,
+    lunchMins: 60
+  },
+  // Viernes: 7h trabajo (8:00-15:00 intensivo), 15min desayuno, sin comida
+  friday: {
+    workedMins: 420, // 7 horas
+    breakfastMins: 15,
+    lunchMins: 0
+  }
+};
+
+// Helper para obtener valores teóricos de un día
+const getReferenciaForDate = (dateStr) => {
+  const date = new Date(dateStr + 'T00:00:00');
+  const dayOfWeek = date.getDay();
+  // 5 = Viernes
+  return dayOfWeek === 5 ? REFERENCIA_TEORICA.friday : REFERENCIA_TEORICA.weekday;
+};
+
+// Helper para obtener total teórico de un rango de fechas (solo L-V)
+const getReferenciaTotalForDates = (dates) => {
+  let totalWorked = 0;
+  let totalBreakfast = 0;
+  let totalLunch = 0;
+
+  dates.forEach(dateStr => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayOfWeek = date.getDay();
+    // Solo días laborables (1-5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      const ref = getReferenciaForDate(dateStr);
+      totalWorked += ref.workedMins;
+      totalBreakfast += ref.breakfastMins;
+      totalLunch += ref.lunchMins;
+    }
+  });
+
+  return { workedMins: totalWorked, breakfastMins: totalBreakfast, lunchMins: totalLunch };
+};
+
+// Helper para obtener días laborables de un mes
+const getWorkingDaysInMonth = (year, month) => {
+  const dates = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      dates.push(d.toISOString().split('T')[0]);
+    }
+  }
+  return dates;
+};
+
+// Helper para formatear diferencia vs referencia
+const formatDifference = (actualMins, refMins) => {
+  const diff = actualMins - refMins;
+  if (diff === 0) return { text: '0', color: 'text-gray-500' };
+
+  const sign = diff > 0 ? '+' : '';
+  const absDiff = Math.abs(diff);
+  const h = Math.floor(absDiff / 60);
+  const m = absDiff % 60;
+
+  let text;
+  if (h === 0) {
+    text = `${sign}${diff > 0 ? '' : '-'}${m}m`;
+  } else {
+    text = `${sign}${h}:${String(m).padStart(2, '0')}`;
+  }
+
+  const color = diff > 0 ? 'text-green-600' : 'text-red-600';
+  return { text, color };
+};
+
 // ==================== WEEKLY STATS TABLE ====================
 const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick, weekOffset: externalWeekOffset, setWeekOffset: externalSetWeekOffset, viewMode = 'horas' }) => {
   const [internalWeekOffset, setInternalWeekOffset] = useState(0);
@@ -2570,8 +2652,16 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
     return days.toFixed(1).replace('.', ',') + 'd';
   };
 
-  // Format based on viewMode
+  // Format based on viewMode (for absolute values)
   const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatMinutes(mins);
+
+  // Format value with vsRef support - returns { text, color } or just text
+  const formatValueWithRef = (actualMins, refMins) => {
+    if (viewMode === 'vsRef') {
+      return formatDifference(actualMins, refMins);
+    }
+    return { text: formatValue(actualMins), color: 'text-green-700' };
+  };
 
   // Get record for user on specific date
   const getRecord = (userCode, date) => {
@@ -2691,6 +2781,56 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
             </tr>
           </thead>
           <tbody>
+            {/* Fila de Referencia Teórica */}
+            <tr className="bg-gray-100 border-b-2 border-gray-400">
+              <td className="p-2 border font-medium sticky left-0 bg-gray-100 z-10 italic text-gray-600">
+                📊 Referencia Teórica
+              </td>
+              {weekDates.map((date) => {
+                const ref = getReferenciaForDate(date);
+                const holiday = getHolidayInfo(date);
+
+                if (holiday?.isLocal) {
+                  return (
+                    <React.Fragment key={`ref-${date}`}>
+                      <td colSpan={3} className="p-1 border text-center bg-red-50 text-gray-500">
+                        Festivo
+                      </td>
+                    </React.Fragment>
+                  );
+                }
+
+                return (
+                  <React.Fragment key={`ref-${date}`}>
+                    <td className="p-1 border text-center text-gray-600">
+                      {formatValue(ref.workedMins)}
+                    </td>
+                    <td className="p-1 border text-center text-xs text-gray-500">
+                      {formatMinutes(ref.breakfastMins)}
+                    </td>
+                    <td className="p-1 border text-center text-xs text-gray-500">
+                      {formatMinutes(ref.lunchMins)}
+                    </td>
+                  </React.Fragment>
+                );
+              })}
+              {(() => {
+                const refTotal = getReferenciaTotalForDates(weekDates);
+                return (
+                  <>
+                    <td className="p-2 border text-center font-bold text-gray-600 bg-gray-200">
+                      {formatValue(refTotal.workedMins)}
+                    </td>
+                    <td className="p-1 border text-center text-xs text-gray-500 bg-gray-200">
+                      {formatMinutes(refTotal.breakfastMins)}
+                    </td>
+                    <td className="p-1 border text-center text-xs text-gray-500 bg-gray-200">
+                      {formatMinutes(refTotal.lunchMins)}
+                    </td>
+                  </>
+                );
+              })()}
+            </tr>
             {users.filter(u => !u.isAdmin).map(user => {
               let totalWorkedMinutes = 0;
               let totalBreakfastMinutes = 0;
@@ -2749,14 +2889,17 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
                     const deviation = hasEntryDeviation(user, record, date);
                     const deviationClass = deviation && record?.endTime ? 'bg-red-100' : '';
 
+                    const ref = getReferenciaForDate(date);
+                    const workedDisplay = record?.endTime ? formatValueWithRef(workedMins, ref.workedMins) : null;
+
                     return (
                       <React.Fragment key={`${user.code}-${date}`}>
                         <td
-                          className={`p-1 border text-center ${record?.endTime ? 'text-green-700 font-medium' : 'text-gray-400'} ${clickableClass} ${deviationClass}`}
+                          className={`p-1 border text-center ${record?.endTime ? (viewMode === 'vsRef' ? workedDisplay.color : 'text-green-700') + ' font-medium' : 'text-gray-400'} ${clickableClass} ${deviationClass}`}
                           onClick={handleClick}
                           title={deviation ? 'Entrada desviada más de 20 min' : 'Clic para ver registro'}
                         >
-                          {record?.endTime ? formatValue(workedMins) : (record?.startTime ? '...' : '-')}
+                          {record?.endTime ? workedDisplay.text : (record?.startTime ? '...' : '-')}
                         </td>
                         <td
                           className={`p-1 border text-center text-xs text-orange-600 ${clickableClass}`}
@@ -2775,9 +2918,15 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
                       </React.Fragment>
                     );
                   })}
-                  <td className="p-2 border text-center font-bold text-indigo-600 bg-indigo-50">
-                    {formatValue(totalWorkedMinutes)}
-                  </td>
+                  {(() => {
+                    const refTotal = getReferenciaTotalForDates(weekDates);
+                    const totalDisplay = formatValueWithRef(totalWorkedMinutes, refTotal.workedMins);
+                    return (
+                      <td className={`p-2 border text-center font-bold ${viewMode === 'vsRef' ? totalDisplay.color : 'text-indigo-600'} bg-indigo-50`}>
+                        {totalDisplay.text}
+                      </td>
+                    );
+                  })()}
                   <td className="p-1 border text-center text-xs text-orange-600 bg-indigo-50">
                     {formatMinutes(totalBreakfastMinutes)}
                   </td>
@@ -2793,9 +2942,10 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-600">
-        <span><span className="text-green-700 font-medium">Trab</span> = {viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
+        <span><span className="text-green-700 font-medium">Trab</span> = {viewMode === 'vsRef' ? 'Diferencia vs Referencia' : viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
         <span><span className="text-orange-600">Des</span> = Pausa desayuno</span>
         <span><span className="text-blue-600">Com</span> = Pausa comida</span>
+        {viewMode === 'vsRef' && <span><span className="text-green-600">+</span> = Por encima | <span className="text-red-600">-</span> = Por debajo</span>}
         <span>✅ = Vacaciones aprobadas</span>
         <span>⏳ = Vacaciones pendientes</span>
         <span>⚠️ = Día especial</span>
@@ -2901,6 +3051,14 @@ const MonthlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reque
   // Format based on viewMode
   const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatHours(mins);
 
+  // Format value with vsRef support
+  const formatValueWithRef = (actualMins, refMins) => {
+    if (viewMode === 'vsRef') {
+      return formatDifference(actualMins, refMins);
+    }
+    return { text: formatValue(actualMins), color: 'text-green-700' };
+  };
+
   const getRecord = (userCode, date) => {
     return timeclockRecords.find(r => r.userCode === userCode && r.date === date);
   };
@@ -2990,6 +3148,46 @@ const MonthlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reque
             </tr>
           </thead>
           <tbody>
+            {/* Fila de Referencia Teórica */}
+            <tr className="bg-gray-100 border-b-2 border-gray-400">
+              <td className="p-2 border font-medium sticky left-0 bg-gray-100 z-10 italic text-gray-600 whitespace-nowrap">
+                📊 Referencia Teórica
+              </td>
+              {monthDates.map(date => {
+                const ref = getReferenciaForDate(date);
+                const holiday = getHolidayInfo(date);
+
+                if (holiday?.isLocal) {
+                  return (
+                    <td key={`ref-${date}`} className="p-1 border text-center bg-red-50 text-gray-400">
+                      -
+                    </td>
+                  );
+                }
+
+                return (
+                  <td key={`ref-${date}`} className="p-1 border text-center text-gray-600">
+                    {formatValue(ref.workedMins)}
+                  </td>
+                );
+              })}
+              {(() => {
+                const refTotal = getReferenciaTotalForDates(monthDates);
+                return (
+                  <>
+                    <td className="p-1 border text-center font-bold text-gray-600 bg-gray-200">
+                      {formatValue(refTotal.workedMins)}
+                    </td>
+                    <td className="p-1 border text-center text-xs text-gray-500 bg-gray-200">
+                      {formatMinutes(refTotal.breakfastMins)}
+                    </td>
+                    <td className="p-1 border text-center text-xs text-gray-500 bg-gray-200">
+                      {formatMinutes(refTotal.lunchMins)}
+                    </td>
+                  </>
+                );
+              })()}
+            </tr>
             {users.filter(u => !u.isAdmin).map(user => {
               let totalWorkedMinutes = 0;
               let totalBreakfastMinutes = 0;
@@ -3034,27 +3232,37 @@ const MonthlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reque
                     }
 
                     const handleClick = () => onCellClick && onCellClick(date, user.code);
+                    const ref = getReferenciaForDate(date);
+                    const workedDisplay = record?.endTime ? formatValueWithRef(workedMins, ref.workedMins) : null;
 
                     return (
                       <td
                         key={date}
-                        className={`p-1 border text-center cursor-pointer hover:bg-gray-100 ${record?.endTime ? 'text-green-700' : 'text-gray-300'}`}
+                        className={`p-1 border text-center cursor-pointer hover:bg-gray-100 ${record?.endTime ? (viewMode === 'vsRef' ? workedDisplay.color : 'text-green-700') : 'text-gray-300'}`}
                         onClick={handleClick}
                         title={record ? `${record.startTime} - ${record.endTime || '...'}` : 'Sin registro'}
                       >
-                        {record?.endTime ? formatValue(workedMins) : (record?.startTime ? '...' : '-')}
+                        {record?.endTime ? workedDisplay.text : (record?.startTime ? '...' : '-')}
                       </td>
                     );
                   })}
-                  <td className="p-1 border text-center font-bold text-green-700 bg-indigo-50">
-                    {formatValue(totalWorkedMinutes)}
-                  </td>
-                  <td className="p-1 border text-center text-xs text-orange-600 bg-indigo-50">
-                    {formatMinutes(totalBreakfastMinutes)}
-                  </td>
-                  <td className="p-1 border text-center text-xs text-blue-600 bg-indigo-50">
-                    {formatMinutes(totalLunchMinutes)}
-                  </td>
+                  {(() => {
+                    const refTotal = getReferenciaTotalForDates(monthDates);
+                    const totalDisplay = formatValueWithRef(totalWorkedMinutes, refTotal.workedMins);
+                    return (
+                      <>
+                        <td className={`p-1 border text-center font-bold ${viewMode === 'vsRef' ? totalDisplay.color : 'text-green-700'} bg-indigo-50`}>
+                          {totalDisplay.text}
+                        </td>
+                        <td className="p-1 border text-center text-xs text-orange-600 bg-indigo-50">
+                          {formatMinutes(totalBreakfastMinutes)}
+                        </td>
+                        <td className="p-1 border text-center text-xs text-blue-600 bg-indigo-50">
+                          {formatMinutes(totalLunchMinutes)}
+                        </td>
+                      </>
+                    );
+                  })()}
                 </tr>
               );
             })}
@@ -3064,7 +3272,8 @@ const MonthlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reque
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-600">
-        <span><span className="text-green-700 font-medium">{viewMode === 'dias' ? 'Días' : 'Horas'}</span> = Tiempo trabajado</span>
+        <span><span className="text-green-700 font-medium">{viewMode === 'vsRef' ? 'Diff' : viewMode === 'dias' ? 'Días' : 'Horas'}</span> = {viewMode === 'vsRef' ? 'Diferencia vs Referencia' : 'Tiempo trabajado'}</span>
+        {viewMode === 'vsRef' && <span><span className="text-green-600">+</span> = Por encima | <span className="text-red-600">-</span> = Por debajo</span>}
         <span>✅ = Vacaciones aprobadas</span>
         <span>⏳ = Vacaciones pendientes</span>
         <span>⚠️ = Día especial</span>
@@ -3199,6 +3408,14 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
   // Format based on viewMode
   const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatHours(mins);
 
+  // Format value with vsRef support
+  const formatValueWithRef = (actualMins, refMins) => {
+    if (viewMode === 'vsRef') {
+      return formatDifference(actualMins, refMins);
+    }
+    return { text: formatValue(actualMins), color: 'text-green-700' };
+  };
+
   return (
     <div className="space-y-4">
       {/* Year selector */}
@@ -3265,6 +3482,40 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
               </tr>
             </thead>
             <tbody>
+              {/* Fila de Referencia Teórica */}
+              <tr className="bg-gray-100 border-b-2 border-gray-400" style={{ height: '29px' }}>
+                <td className="p-1 border font-medium sticky left-0 bg-gray-100 z-10 min-w-[140px] italic text-gray-600">
+                  📊 Ref. Teórica
+                </td>
+                {weeks.map(week => {
+                  // Calcular días de la semana (L-V entre startDate y endDate)
+                  const weekDates = [];
+                  let current = new Date(week.startDate + 'T00:00:00');
+                  const end = new Date(week.endDate + 'T00:00:00');
+                  while (current <= end) {
+                    const dow = current.getDay();
+                    if (dow >= 1 && dow <= 5) {
+                      weekDates.push(current.toISOString().split('T')[0]);
+                    }
+                    current.setDate(current.getDate() + 1);
+                  }
+                  const refWeek = getReferenciaTotalForDates(weekDates);
+
+                  return (
+                    <React.Fragment key={`ref-${week.weekNum}`}>
+                      <td className="p-1 border text-center text-gray-600">
+                        {formatValue(refWeek.workedMins)}
+                      </td>
+                      <td className="p-1 border text-center text-gray-500">
+                        {formatMinutes(refWeek.breakfastMins)}
+                      </td>
+                      <td className="p-1 border text-center text-gray-500">
+                        {formatMinutes(refWeek.lunchMins)}
+                      </td>
+                    </React.Fragment>
+                  );
+                })}
+              </tr>
               {users.filter(u => !u.isAdmin).map(user => {
                 let yearWorkedMins = 0;
                 let yearBreakfastMins = 0;
@@ -3276,13 +3527,27 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                   yearBreakfastMins += stats.breakfastMins;
                   yearLunchMins += stats.lunchMins;
 
+                  // Calcular referencia para esta semana
+                  const weekDates = [];
+                  let current = new Date(week.startDate + 'T00:00:00');
+                  const end = new Date(week.endDate + 'T00:00:00');
+                  while (current <= end) {
+                    const dow = current.getDay();
+                    if (dow >= 1 && dow <= 5) {
+                      weekDates.push(current.toISOString().split('T')[0]);
+                    }
+                    current.setDate(current.getDate() + 1);
+                  }
+                  const refWeek = getReferenciaTotalForDates(weekDates);
+                  const workedDisplay = formatValueWithRef(stats.workedMins, refWeek.workedMins);
+
                   return (
                     <React.Fragment key={`${user.code}-${week.weekNum}`}>
                       <td
-                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-green-700"
+                        className={`p-1 border text-center cursor-pointer hover:bg-gray-100 ${viewMode === 'vsRef' ? workedDisplay.color : 'text-green-700'}`}
                         onClick={() => onWeekClick && onWeekClick(week.weekNum, week.startDate)}
                       >
-                        {formatValue(stats.workedMins)}
+                        {workedDisplay.text}
                       </td>
                       <td
                         className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-orange-600"
@@ -3334,22 +3599,76 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
               </tr>
             </thead>
             <tbody>
+              {/* Fila de Referencia Teórica - Total Anual */}
+              {(() => {
+                let refYearWorked = 0;
+                let refYearBreakfast = 0;
+                let refYearLunch = 0;
+
+                weeks.forEach(week => {
+                  const weekDates = [];
+                  let current = new Date(week.startDate + 'T00:00:00');
+                  const end = new Date(week.endDate + 'T00:00:00');
+                  while (current <= end) {
+                    const dow = current.getDay();
+                    if (dow >= 1 && dow <= 5) {
+                      weekDates.push(current.toISOString().split('T')[0]);
+                    }
+                    current.setDate(current.getDate() + 1);
+                  }
+                  const refWeek = getReferenciaTotalForDates(weekDates);
+                  refYearWorked += refWeek.workedMins;
+                  refYearBreakfast += refWeek.breakfastMins;
+                  refYearLunch += refWeek.lunchMins;
+                });
+
+                return (
+                  <tr className="bg-gray-200 border-b-2 border-gray-400" style={{ height: '29px' }}>
+                    <td className="p-1 border text-center font-bold text-gray-600">
+                      {formatValue(refYearWorked)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-gray-500">
+                      {formatMinutes(refYearBreakfast)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-gray-500">
+                      {formatMinutes(refYearLunch)}
+                    </td>
+                  </tr>
+                );
+              })()}
               {users.filter(u => !u.isAdmin).map(user => {
                 let yearWorkedMins = 0;
                 let yearBreakfastMins = 0;
                 let yearLunchMins = 0;
+                let refYearWorked = 0;
 
                 weeks.forEach(week => {
                   const stats = getWeekStats(user.code, week);
                   yearWorkedMins += stats.workedMins;
                   yearBreakfastMins += stats.breakfastMins;
                   yearLunchMins += stats.lunchMins;
+
+                  // Calcular referencia
+                  const weekDates = [];
+                  let current = new Date(week.startDate + 'T00:00:00');
+                  const end = new Date(week.endDate + 'T00:00:00');
+                  while (current <= end) {
+                    const dow = current.getDay();
+                    if (dow >= 1 && dow <= 5) {
+                      weekDates.push(current.toISOString().split('T')[0]);
+                    }
+                    current.setDate(current.getDate() + 1);
+                  }
+                  const refWeek = getReferenciaTotalForDates(weekDates);
+                  refYearWorked += refWeek.workedMins;
                 });
+
+                const totalDisplay = formatValueWithRef(yearWorkedMins, refYearWorked);
 
                 return (
                   <tr key={user.code} className="bg-indigo-50" style={{ height: '29px' }}>
-                    <td className="p-1 border text-center font-bold text-green-700">
-                      {formatValue(yearWorkedMins)}
+                    <td className={`p-1 border text-center font-bold ${viewMode === 'vsRef' ? totalDisplay.color : 'text-green-700'}`}>
+                      {totalDisplay.text}
                     </td>
                     <td className="p-1 border text-center font-bold text-orange-600">
                       {formatMinutes(yearBreakfastMins)}
@@ -3367,9 +3686,10 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-600 mt-4">
-        <span><span className="text-green-700 font-medium">T</span> = {viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
+        <span><span className="text-green-700 font-medium">T</span> = {viewMode === 'vsRef' ? 'Diferencia vs Ref' : viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
         <span><span className="text-orange-600">D</span> = Pausa desayuno</span>
         <span><span className="text-blue-600">C</span> = Pausa comida</span>
+        {viewMode === 'vsRef' && <span><span className="text-green-600">+</span> = Por encima | <span className="text-red-600">-</span> = Por debajo</span>}
         <span className="text-gray-500">Click en semana para ver detalle</span>
       </div>
     </div>
@@ -3446,6 +3766,14 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
   // Format based on viewMode
   const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatHours(mins);
 
+  // Format value with vsRef support
+  const formatValueWithRef = (actualMins, refMins) => {
+    if (viewMode === 'vsRef') {
+      return formatDifference(actualMins, refMins);
+    }
+    return { text: formatValue(actualMins), color: 'text-green-700' };
+  };
+
   return (
     <div className="space-y-4">
       {/* Year selector */}
@@ -3500,17 +3828,44 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
               </tr>
             </thead>
             <tbody>
+              {/* Fila de Referencia Teórica */}
+              <tr className="bg-gray-100 border-b-2 border-gray-400" style={{ height: '29px' }}>
+                <td className="p-1 border font-medium sticky left-0 bg-gray-100 z-10 min-w-[140px] italic text-gray-600">
+                  📊 Ref. Teórica
+                </td>
+                {monthNamesShort.map((_, monthIdx) => {
+                  const monthDates = getWorkingDaysInMonth(selectedYear, monthIdx);
+                  const refMonth = getReferenciaTotalForDates(monthDates);
+
+                  return (
+                    <React.Fragment key={`ref-${monthIdx}`}>
+                      <td className="p-1 border text-center text-gray-600">
+                        {formatValue(refMonth.workedMins)}
+                      </td>
+                      <td className="p-1 border text-center text-gray-500">
+                        {formatMinutes(refMonth.breakfastMins)}
+                      </td>
+                      <td className="p-1 border text-center text-gray-500">
+                        {formatMinutes(refMonth.lunchMins)}
+                      </td>
+                    </React.Fragment>
+                  );
+                })}
+              </tr>
               {users.filter(u => !u.isAdmin).map(user => {
                 const monthCells = monthNamesShort.map((_, monthIdx) => {
                   const stats = getMonthStats(user.code, monthIdx);
+                  const monthDates = getWorkingDaysInMonth(selectedYear, monthIdx);
+                  const refMonth = getReferenciaTotalForDates(monthDates);
+                  const workedDisplay = formatValueWithRef(stats.workedMins, refMonth.workedMins);
 
                   return (
                     <React.Fragment key={`${user.code}-${monthIdx}`}>
                       <td
-                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-green-700"
+                        className={`p-1 border text-center cursor-pointer hover:bg-gray-100 ${viewMode === 'vsRef' ? workedDisplay.color : 'text-green-700'}`}
                         onClick={() => onMonthClick && onMonthClick(monthIdx, selectedYear)}
                       >
-                        {formatValue(stats.workedMins)}
+                        {workedDisplay.text}
                       </td>
                       <td
                         className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-orange-600"
@@ -3557,22 +3912,58 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
               </tr>
             </thead>
             <tbody>
+              {/* Fila de Referencia Teórica - Total Anual */}
+              {(() => {
+                let refYearWorked = 0;
+                let refYearBreakfast = 0;
+                let refYearLunch = 0;
+
+                monthNamesShort.forEach((_, monthIdx) => {
+                  const monthDates = getWorkingDaysInMonth(selectedYear, monthIdx);
+                  const refMonth = getReferenciaTotalForDates(monthDates);
+                  refYearWorked += refMonth.workedMins;
+                  refYearBreakfast += refMonth.breakfastMins;
+                  refYearLunch += refMonth.lunchMins;
+                });
+
+                return (
+                  <tr className="bg-gray-200 border-b-2 border-gray-400" style={{ height: '29px' }}>
+                    <td className="p-1 border text-center font-bold text-gray-600">
+                      {formatValue(refYearWorked)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-gray-500">
+                      {formatMinutes(refYearBreakfast)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-gray-500">
+                      {formatMinutes(refYearLunch)}
+                    </td>
+                  </tr>
+                );
+              })()}
               {users.filter(u => !u.isAdmin).map(user => {
                 let yearWorkedMins = 0;
                 let yearBreakfastMins = 0;
                 let yearLunchMins = 0;
+                let refYearWorked = 0;
 
                 monthNamesShort.forEach((_, monthIdx) => {
                   const stats = getMonthStats(user.code, monthIdx);
                   yearWorkedMins += stats.workedMins;
                   yearBreakfastMins += stats.breakfastMins;
                   yearLunchMins += stats.lunchMins;
+
+                  // Calcular referencia
+                  const monthDates = getWorkingDaysInMonth(selectedYear, monthIdx);
+                  const refMonth = getReferenciaTotalForDates(monthDates);
+                  refYearWorked += refMonth.workedMins;
                 });
+
+                const totalDisplay = formatValueWithRef(yearWorkedMins, refYearWorked);
 
                 return (
                   <tr key={user.code} className="bg-indigo-50" style={{ height: '29px' }}>
-                    <td className="p-1 border text-center font-bold text-green-700">
-                      {formatValue(yearWorkedMins)}
+                    <td className={`p-1 border text-center font-bold ${viewMode === 'vsRef' ? totalDisplay.color : 'text-green-700'}`}>
+                      {totalDisplay.text}
                     </td>
                     <td className="p-1 border text-center font-bold text-orange-600">
                       {formatMinutes(yearBreakfastMins)}
@@ -3590,9 +3981,10 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-600 mt-4">
-        <span><span className="text-green-700 font-medium">T</span> = {viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
+        <span><span className="text-green-700 font-medium">T</span> = {viewMode === 'vsRef' ? 'Diferencia vs Ref' : viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
         <span><span className="text-orange-600">D</span> = Pausa desayuno</span>
         <span><span className="text-blue-600">C</span> = Pausa comida</span>
+        {viewMode === 'vsRef' && <span><span className="text-green-600">+</span> = Por encima | <span className="text-red-600">-</span> = Por debajo</span>}
         <span className="text-gray-500">Click en mes para ver detalle</span>
       </div>
     </div>
@@ -3603,7 +3995,7 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays, deleteRequest, addRequest, currentUser }) => {
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [statsSubTab, setStatsSubTab] = useState('semanal');
-  const [statsViewMode, setStatsViewMode] = useState('horas'); // 'horas' or 'dias'
+  const [statsViewMode, setStatsViewMode] = useState('horas'); // 'horas', 'dias', or 'vsRef'
   const [conflictsSubTab, setConflictsSubTab] = useState('conflictos');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
@@ -3884,7 +4276,7 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
               </button>
             </div>
 
-            {/* View mode selector: Horas / Días */}
+            {/* View mode selector: Horas / Días / vs Ref */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">Ver en:</span>
               <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
@@ -3899,6 +4291,12 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
                   className={`px-3 py-1 rounded-md font-medium text-sm transition-colors ${statsViewMode === 'dias' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
                 >
                   Días
+                </button>
+                <button
+                  onClick={() => setStatsViewMode('vsRef')}
+                  className={`px-3 py-1 rounded-md font-medium text-sm transition-colors ${statsViewMode === 'vsRef' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  vs Ref
                 </button>
               </div>
             </div>
