@@ -218,6 +218,13 @@ const VacationManager = () => {
   const handleLogout = () => { setCurrentUser(null); setLoginCode(''); setActiveTab('calendar'); };
   const isWeekend = (date) => { const d = new Date(date).getDay(); return d === 0 || d === 6; };
   const isHoliday = (date) => companyHolidays.some(h => h.date === date && h.isLocal === true && !h.noSeRespeta);
+  // Formatear fecha local a YYYY-MM-DD (evita problemas de zona horaria con toISOString)
+  const toLocalDateString = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
   const handleLogin = () => {
     const user = users.find(u => u.code === loginCode);
@@ -5286,7 +5293,7 @@ const WorkCalendarView = ({ holidays, addHoliday, updateHoliday, deleteHoliday, 
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(selectedYear, monthIndex, day);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateString(date);
       const dayOfWeek = date.getDay();
       const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
       const holiday = getDayInfo(dateStr);
