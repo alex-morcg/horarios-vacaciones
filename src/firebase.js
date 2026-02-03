@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyCmoiIKec5NIDYzyY_TqwXgjbI_pu4WUy8",
+  authDomain: "patrick-masajes.firebaseapp.com",
+  projectId: "patrick-masajes",
+  storageBucket: "patrick-masajes.firebasestorage.app",
+  messagingSenderId: "148332805394",
+  appId: "1:148332805394:web:5c3307241ed2fb5af2c7cb"
 };
 
 const app = initializeApp(firebaseConfig);
