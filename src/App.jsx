@@ -2227,8 +2227,16 @@ const TimeclockView = ({ currentUser, timeclockRecords, addTimeclockRecord, upda
     const end = record.endTime ? new Date(`${record.date}T${record.endTime}`) : new Date();
     let totalMinutes = Math.floor((end - start) / 60000);
 
-    // Don't subtract breaks - they are just recorded, not deducted
-    // (as per user requirement)
+    // Restar pausa de comida (no desayuno)
+    if (record.breaks?.length > 0) {
+      for (const brk of record.breaks) {
+        if (brk.type === 'comida' && brk.startTime && brk.endTime) {
+          const breakStart = new Date(`${record.date}T${brk.startTime}`);
+          const breakEnd = new Date(`${record.date}T${brk.endTime}`);
+          totalMinutes -= Math.floor((breakEnd - breakStart) / 60000);
+        }
+      }
+    }
 
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
