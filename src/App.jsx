@@ -2509,7 +2509,7 @@ const TimeclockUserHistory = ({ timeclockRecords, calculateWorkedTime }) => {
 };
 
 // ==================== WEEKLY STATS TABLE ====================
-const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick, weekOffset: externalWeekOffset, setWeekOffset: externalSetWeekOffset }) => {
+const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick, weekOffset: externalWeekOffset, setWeekOffset: externalSetWeekOffset, viewMode = 'horas' }) => {
   const [internalWeekOffset, setInternalWeekOffset] = useState(0);
   const weekOffset = externalWeekOffset !== undefined ? externalWeekOffset : internalWeekOffset;
   const setWeekOffset = externalSetWeekOffset || setInternalWeekOffset;
@@ -2562,6 +2562,16 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
     if (h === 0) return `${m}m`;
     return `${h}h${m > 0 ? ` ${m}m` : ''}`;
   };
+
+  // Format minutes as days (mins / 480, 1 decimal)
+  const formatDays = (mins) => {
+    if (mins === 0) return '-';
+    const days = mins / 480; // 8 hours = 480 minutes
+    return days.toFixed(1).replace('.', ',') + 'd';
+  };
+
+  // Format based on viewMode
+  const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatMinutes(mins);
 
   // Get record for user on specific date
   const getRecord = (userCode, date) => {
@@ -2746,7 +2756,7 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
                           onClick={handleClick}
                           title={deviation ? 'Entrada desviada más de 20 min' : 'Clic para ver registro'}
                         >
-                          {record?.endTime ? formatMinutes(workedMins) : (record?.startTime ? '...' : '-')}
+                          {record?.endTime ? formatValue(workedMins) : (record?.startTime ? '...' : '-')}
                         </td>
                         <td
                           className={`p-1 border text-center text-xs text-orange-600 ${clickableClass}`}
@@ -2766,7 +2776,7 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
                     );
                   })}
                   <td className="p-2 border text-center font-bold text-indigo-600 bg-indigo-50">
-                    {formatMinutes(totalWorkedMinutes)}
+                    {formatValue(totalWorkedMinutes)}
                   </td>
                   <td className="p-1 border text-center text-xs text-orange-600 bg-indigo-50">
                     {formatMinutes(totalBreakfastMinutes)}
@@ -2783,7 +2793,7 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-600">
-        <span><span className="text-green-700 font-medium">Trab</span> = Horas trabajadas</span>
+        <span><span className="text-green-700 font-medium">Trab</span> = {viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
         <span><span className="text-orange-600">Des</span> = Pausa desayuno</span>
         <span><span className="text-blue-600">Com</span> = Pausa comida</span>
         <span>✅ = Vacaciones aprobadas</span>
@@ -2795,8 +2805,277 @@ const WeeklyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, reques
   );
 };
 
+// ==================== MONTHLY STATS TABLE ====================
+const MonthlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, requests, holidays, onCellClick, monthOffset: externalMonthOffset, setMonthOffset: externalSetMonthOffset, viewMode = 'horas' }) => {
+  const [internalMonthOffset, setInternalMonthOffset] = useState(0);
+  const monthOffset = externalMonthOffset !== undefined ? externalMonthOffset : internalMonthOffset;
+  const setMonthOffset = externalSetMonthOffset || setInternalMonthOffset;
+
+  // Get all dates of the month (only Mon-Fri)
+  const getMonthDates = () => {
+    const today = new Date();
+    const targetMonth = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+    const year = targetMonth.getFullYear();
+    const month = targetMonth.getMonth();
+
+    const dates = [];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      const dayOfWeek = d.getDay();
+      // Only Mon-Fri (1-5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        dates.push(d.toISOString().split('T')[0]);
+      }
+    }
+    return dates;
+  };
+
+  // Get week number for grouping
+  const getWeekNumber = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  };
+
+  const monthDates = getMonthDates();
+  const dayNames = { 1: 'L', 2: 'M', 3: 'X', 4: 'J', 5: 'V' };
+
+  // Group dates by week
+  const weekGroups = [];
+  let currentWeek = null;
+  let currentWeekDates = [];
+
+  monthDates.forEach(date => {
+    const weekNum = getWeekNumber(date);
+    if (currentWeek !== weekNum) {
+      if (currentWeekDates.length > 0) {
+        weekGroups.push({ weekNum: currentWeek, dates: currentWeekDates });
+      }
+      currentWeek = weekNum;
+      currentWeekDates = [date];
+    } else {
+      currentWeekDates.push(date);
+    }
+  });
+  if (currentWeekDates.length > 0) {
+    weekGroups.push({ weekNum: currentWeek, dates: currentWeekDates });
+  }
+
+  // Calculate break duration in minutes
+  const getBreakMinutes = (record, breakType) => {
+    if (!record?.breaks) return 0;
+    const brk = record.breaks.find(b => b.type === breakType);
+    if (!brk || !brk.startTime || !brk.endTime) return 0;
+    const start = new Date(`2000-01-01T${brk.startTime}`);
+    const end = new Date(`2000-01-01T${brk.endTime}`);
+    return Math.floor((end - start) / 60000);
+  };
+
+  const formatMinutes = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+  };
+
+  const formatHours = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Format minutes as days (mins / 480, 1 decimal)
+  const formatDays = (mins) => {
+    if (mins === 0) return '-';
+    const days = mins / 480; // 8 hours = 480 minutes
+    return days.toFixed(1).replace('.', ',') + 'd';
+  };
+
+  // Format based on viewMode
+  const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatHours(mins);
+
+  const getRecord = (userCode, date) => {
+    return timeclockRecords.find(r => r.userCode === userCode && r.date === date);
+  };
+
+  const getVacationInfo = (userCode, date) => {
+    const req = requests?.find(r => {
+      if (r.userCode !== userCode) return false;
+      if (r.status !== 'approved' && r.status !== 'pending') return false;
+      if (r.isRange) {
+        return date >= r.startDate && date <= r.endDate;
+      }
+      return r.dates?.includes(date);
+    });
+    return req;
+  };
+
+  const getHolidayInfo = (date) => {
+    return holidays?.find(h => h.date === date);
+  };
+
+  const getMonthYear = () => {
+    const today = new Date();
+    const targetMonth = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+    return targetMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Month navigation */}
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setMonthOffset(monthOffset - 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+        >
+          <ChevronLeft className="w-4 h-4" /> Mes anterior
+        </button>
+        <h3 className="text-xl font-bold capitalize">{getMonthYear()}</h3>
+        <button
+          onClick={() => setMonthOffset(monthOffset + 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+          disabled={monthOffset >= 0}
+        >
+          Mes siguiente <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Monthly table */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            {/* Week headers */}
+            <tr className="bg-indigo-700 text-white">
+              <th className="p-2 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20" rowSpan={2}>
+                Empleado
+              </th>
+              {weekGroups.map(week => (
+                <th
+                  key={week.weekNum}
+                  colSpan={week.dates.length}
+                  className="p-1 border border-indigo-600 text-center"
+                >
+                  Sem {week.weekNum}
+                </th>
+              ))}
+              <th className="p-2 border border-indigo-600 text-center bg-indigo-800" colSpan={3} rowSpan={2}>
+                Total Mes
+              </th>
+            </tr>
+            {/* Day headers */}
+            <tr className="bg-indigo-600 text-white">
+              {monthDates.map(date => {
+                const d = new Date(date + 'T00:00:00');
+                const dayOfWeek = d.getDay();
+                const dayNum = d.getDate();
+                const holiday = getHolidayInfo(date);
+                return (
+                  <th
+                    key={date}
+                    className={`p-1 border border-indigo-500 text-center ${holiday ? 'bg-red-500' : ''}`}
+                    title={d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  >
+                    {dayNames[dayOfWeek]}{dayNum}
+                    {holiday && <span className="ml-0.5">{holiday.emoji || '🎉'}</span>}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {users.filter(u => !u.isAdmin).map(user => {
+              let totalWorkedMinutes = 0;
+              let totalBreakfastMinutes = 0;
+              let totalLunchMinutes = 0;
+
+              return (
+                <tr key={user.code} className="hover:bg-gray-50">
+                  <td className="p-2 border font-medium sticky left-0 bg-white z-10 whitespace-nowrap">
+                    {user.name} {user.lastName}
+                  </td>
+                  {monthDates.map(date => {
+                    const record = getRecord(user.code, date);
+                    const vacation = getVacationInfo(user.code, date);
+                    const holiday = getHolidayInfo(date);
+
+                    const worked = record ? calculateWorkedTime(record) : { hours: 0, minutes: 0 };
+                    const workedMins = worked.hours * 60 + worked.minutes;
+
+                    if (record?.endTime) {
+                      totalWorkedMinutes += workedMins;
+                      totalBreakfastMinutes += getBreakMinutes(record, 'desayuno');
+                      totalLunchMinutes += getBreakMinutes(record, 'comida');
+                    }
+
+                    // Vacation or holiday
+                    if (vacation) {
+                      const emoji = vacation.type === 'other' ? '⚠️' : (vacation.status === 'approved' ? '✅' : '⏳');
+                      const bgColor = vacation.status === 'approved' ? 'bg-green-100' : 'bg-yellow-100';
+                      return (
+                        <td key={date} className={`p-1 border text-center ${bgColor}`} title={vacation.type === 'other' ? 'Día especial' : 'Vacaciones'}>
+                          {emoji}
+                        </td>
+                      );
+                    }
+
+                    if (holiday?.isLocal) {
+                      return (
+                        <td key={date} className="p-1 border text-center bg-red-50" title={holiday.name}>
+                          {holiday.emoji || '🎉'}
+                        </td>
+                      );
+                    }
+
+                    const handleClick = () => onCellClick && onCellClick(date, user.code);
+
+                    return (
+                      <td
+                        key={date}
+                        className={`p-1 border text-center cursor-pointer hover:bg-gray-100 ${record?.endTime ? 'text-green-700' : 'text-gray-300'}`}
+                        onClick={handleClick}
+                        title={record ? `${record.startTime} - ${record.endTime || '...'}` : 'Sin registro'}
+                      >
+                        {record?.endTime ? formatValue(workedMins) : (record?.startTime ? '...' : '-')}
+                      </td>
+                    );
+                  })}
+                  <td className="p-1 border text-center font-bold text-green-700 bg-indigo-50">
+                    {formatValue(totalWorkedMinutes)}
+                  </td>
+                  <td className="p-1 border text-center text-xs text-orange-600 bg-indigo-50">
+                    {formatMinutes(totalBreakfastMinutes)}
+                  </td>
+                  <td className="p-1 border text-center text-xs text-blue-600 bg-indigo-50">
+                    {formatMinutes(totalLunchMinutes)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs text-gray-600">
+        <span><span className="text-green-700 font-medium">{viewMode === 'dias' ? 'Días' : 'Horas'}</span> = Tiempo trabajado</span>
+        <span>✅ = Vacaciones aprobadas</span>
+        <span>⏳ = Vacaciones pendientes</span>
+        <span>⚠️ = Día especial</span>
+        <span>🎉 = Festivo</span>
+      </div>
+    </div>
+  );
+};
+
 // ==================== YEARLY STATS TABLE ====================
-const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeekClick }) => {
+const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeekClick, viewMode = 'horas' }) => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
@@ -2910,6 +3189,16 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
     return `${h}:${String(m).padStart(2, '0')}`;
   };
 
+  // Format minutes as days (mins / 480, 1 decimal)
+  const formatDays = (mins) => {
+    if (mins === 0) return '-';
+    const days = mins / 480; // 8 hours = 480 minutes
+    return days.toFixed(1).replace('.', ',') + 'd';
+  };
+
+  // Format based on viewMode
+  const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatHours(mins);
+
   return (
     <div className="space-y-4">
       {/* Year selector */}
@@ -2993,7 +3282,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                         className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-green-700"
                         onClick={() => onWeekClick && onWeekClick(week.weekNum, week.startDate)}
                       >
-                        {formatHours(stats.workedMins)}
+                        {formatValue(stats.workedMins)}
                       </td>
                       <td
                         className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-orange-600"
@@ -3060,7 +3349,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                 return (
                   <tr key={user.code} className="bg-indigo-50">
                     <td className="p-1 border text-center font-bold text-green-700" style={{ height: '33px' }}>
-                      {formatHours(yearWorkedMins)}
+                      {formatValue(yearWorkedMins)}
                     </td>
                     <td className="p-1 border text-center font-bold text-orange-600">
                       {formatMinutes(yearBreakfastMins)}
@@ -3078,7 +3367,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-gray-600 mt-4">
-        <span><span className="text-green-700 font-medium">T</span> = Horas trabajadas</span>
+        <span><span className="text-green-700 font-medium">T</span> = {viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
         <span><span className="text-orange-600">D</span> = Pausa desayuno</span>
         <span><span className="text-blue-600">C</span> = Pausa comida</span>
         <span className="text-gray-500">Click en semana para ver detalle</span>
@@ -3091,6 +3380,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays, deleteRequest, addRequest, currentUser }) => {
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
   const [statsSubTab, setStatsSubTab] = useState('semanal');
+  const [statsViewMode, setStatsViewMode] = useState('horas'); // 'horas' or 'dias'
   const [conflictsSubTab, setConflictsSubTab] = useState('conflictos');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedUser, setSelectedUser] = useState('all');
@@ -3340,20 +3630,48 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
       {/* Stats Tab with sub-tabs */}
       {activeAdminTab === 'estadisticas' && (
         <div className="space-y-4">
-          {/* Sub-tabs: Semanal / Anual */}
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
-            <button
-              onClick={() => setStatsSubTab('semanal')}
-              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'semanal' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              Semanal
-            </button>
-            <button
-              onClick={() => setStatsSubTab('anual')}
-              className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'anual' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              Anual
-            </button>
+          {/* Sub-tabs and view mode selector */}
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            {/* Sub-tabs: Semanal / Mensual / Anual */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setStatsSubTab('semanal')}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'semanal' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Semanal
+              </button>
+              <button
+                onClick={() => setStatsSubTab('mensual')}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'mensual' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Mensual
+              </button>
+              <button
+                onClick={() => setStatsSubTab('anual')}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'anual' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Anual
+              </button>
+            </div>
+
+            {/* View mode selector: Horas / Días */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Ver en:</span>
+              <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setStatsViewMode('horas')}
+                  className={`px-3 py-1 rounded-md font-medium text-sm transition-colors ${statsViewMode === 'horas' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  Horas
+                </button>
+                <button
+                  onClick={() => setStatsViewMode('dias')}
+                  className={`px-3 py-1 rounded-md font-medium text-sm transition-colors ${statsViewMode === 'dias' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  Días
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Weekly Stats */}
@@ -3366,6 +3684,24 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
               holidays={holidays}
               weekOffset={weekOffset}
               setWeekOffset={setWeekOffset}
+              viewMode={statsViewMode}
+              onCellClick={(date, userCode) => {
+                setSelectedDate(date);
+                setSelectedUser(userCode);
+                setActiveAdminTab('registros');
+              }}
+            />
+          )}
+
+          {/* Monthly Stats */}
+          {statsSubTab === 'mensual' && (
+            <MonthlyStatsTable
+              timeclockRecords={timeclockRecords}
+              users={users}
+              calculateWorkedTime={calculateWorkedTime}
+              requests={requests}
+              holidays={holidays}
+              viewMode={statsViewMode}
               onCellClick={(date, userCode) => {
                 setSelectedDate(date);
                 setSelectedUser(userCode);
@@ -3380,6 +3716,7 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
               timeclockRecords={timeclockRecords}
               users={users}
               calculateWorkedTime={calculateWorkedTime}
+              viewMode={statsViewMode}
               onWeekClick={(weekNum, startDate) => {
                 // Calculate week offset from current week
                 const today = new Date();
