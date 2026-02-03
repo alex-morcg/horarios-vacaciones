@@ -23,6 +23,8 @@ const VacationManager = () => {
   const [timeclockRecords, setTimeclockRecords] = useState([]);
   const [timeclockSettings, setTimeclockSettings] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [scheduleTypes, setScheduleTypes] = useState([]);
+  const [timeclockValidations, setTimeclockValidations] = useState([]);
 
   const defaultHolidays = [
     // === 2022 ===
@@ -210,7 +212,25 @@ const VacationManager = () => {
       setTimeclockSettings(settings || null);
     });
 
-    return () => { unsubUsers(); unsubRequests(); unsubHolidays(); unsubDepts(); unsubFeedbacks(); unsubTimeclock(); unsubTimeclockSettings(); };
+    const unsubScheduleTypes = onSnapshot(collection(db, 'vacation_schedule_types'), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (data.length === 0) {
+        const defaultTypes = [
+          { name: 'Normal', weekday: { entrada: '08:00', salida: '17:00', breakfastMins: 15, lunchMins: 60 }, friday: { entrada: '08:00', salida: '15:00', breakfastMins: 15, lunchMins: 0 } },
+          { name: 'Intensivo', weekday: { entrada: '08:00', salida: '16:15', breakfastMins: 15, lunchMins: 0 }, friday: { entrada: '08:00', salida: '15:00', breakfastMins: 15, lunchMins: 0 } }
+        ];
+        defaultTypes.forEach(t => addDoc(collection(db, 'vacation_schedule_types'), t));
+        setScheduleTypes(defaultTypes);
+      } else {
+        setScheduleTypes(data);
+      }
+    });
+
+    const unsubValidations = onSnapshot(collection(db, 'vacation_timeclock_validations'), (snap) => {
+      setTimeclockValidations(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubUsers(); unsubRequests(); unsubHolidays(); unsubDepts(); unsubFeedbacks(); unsubTimeclock(); unsubTimeclockSettings(); unsubScheduleTypes(); unsubValidations(); };
   }, []);
 
   const getUserDepartments = (user) => user?.departments || [];
@@ -228,7 +248,13 @@ const VacationManager = () => {
 
   const handleLogin = () => {
     const user = users.find(u => u.code === loginCode);
-    if (user) setCurrentUser(user);
+    if (user) {
+      setCurrentUser(user);
+      // Si es gestor de marcajes (no admin), ir directamente al panel de validación
+      if (user.isTimeclockManager && !user.isAdmin) {
+        setActiveTab('timeclockValidation');
+      }
+    }
     else if (loginCode === 'ADMIN') setCurrentUser({ code: 'ADMIN', isAdmin: true, name: 'Administrador', lastName: '', departments: [] });
     else showNotification('error', 'Código incorrecto');
   };
@@ -357,6 +383,16 @@ const VacationManager = () => {
     showNotification('success', 'Configuración guardada');
   };
 
+  // Schedule Types CRUD
+  const addScheduleType = async (s) => { await addDoc(collection(db, 'vacation_schedule_types'), s); showNotification('success', 'Horario tipo creado'); };
+  const updateScheduleType = async (id, s) => { await updateDoc(doc(db, 'vacation_schedule_types', id), s); showNotification('success', 'Horario tipo actualizado'); };
+  const deleteScheduleType = async (id) => { await deleteDoc(doc(db, 'vacation_schedule_types', id)); showNotification('success', 'Horario tipo eliminado'); };
+
+  // Timeclock Validations CRUD
+  const addValidation = async (v) => { await addDoc(collection(db, 'vacation_timeclock_validations'), v); };
+  const updateValidation = async (id, v) => { await updateDoc(doc(db, 'vacation_timeclock_validations', id), v); };
+  const deleteValidation = async (id) => { await deleteDoc(doc(db, 'vacation_timeclock_validations', id)); };
+
   if (loading) return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100"><Calendar className="w-16 h-16 text-indigo-600 animate-pulse" /></div>;
 
   if (!currentUser) return (
@@ -365,7 +401,7 @@ const VacationManager = () => {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <Calendar className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.27)</span></h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sistema de Vacaciones <span className="text-indigo-400 text-lg font-normal">(v1.28)</span></h1>
           <p className="text-gray-600 mt-2">Introduce tu código de empleado</p>
           <div className="flex items-center justify-center mt-2 text-sm">
             {connected ? <span className="flex items-center text-green-600"><Wifi className="w-4 h-4 mr-1" /> Conectado</span> : <span className="flex items-center text-red-600"><WifiOff className="w-4 h-4 mr-1" /> Sin conexión</span>}
@@ -400,7 +436,7 @@ const VacationManager = () => {
             >
               <Clock className="w-8 h-8" />
             </button>
-            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.27)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
+            <div><h1 className="text-xl font-bold">Gestión de Vacaciones <span className="text-indigo-300 text-sm font-normal">(v1.28)</span></h1><p className="text-indigo-200 text-sm">{currentUser.name} {currentUser.lastName}</p></div>
           </div>
           <div className="flex items-center space-x-3">
             {connected ? <Wifi className="w-5 h-5 text-green-300" /> : <WifiOff className="w-5 h-5 text-red-300" />}
@@ -411,21 +447,34 @@ const VacationManager = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="flex border-b overflow-x-auto sticky top-[72px] z-30 bg-white">
-            {activeTab !== 'timeclock' && <TabButton icon={Calendar} label="Calendario" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />}
-            {currentUser.isAdmin && activeTab !== 'timeclock' && <>
+            {/* Gestor de marcajes solo ve panel de validación */}
+            {currentUser.isTimeclockManager && !currentUser.isAdmin && (
+              <TabButton icon={Check} label="Validar Marcajes" active={activeTab === 'timeclockValidation'} onClick={() => setActiveTab('timeclockValidation')} />
+            )}
+            {/* Tabs normales para usuarios y admins (no gestores de marcajes) */}
+            {!currentUser.isTimeclockManager && activeTab !== 'timeclock' && activeTab !== 'timeclockValidation' && activeTab !== 'scheduleTypes' && (
+              <TabButton icon={Calendar} label="Calendario" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
+            )}
+            {currentUser.isAdmin && activeTab !== 'timeclock' && activeTab !== 'timeclockValidation' && activeTab !== 'scheduleTypes' && <>
               <TabButton icon={Users} label="Usuarios" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
               <TabButton icon={FileText} label="Aprobar" active={activeTab === 'approve'} onClick={() => setActiveTab('approve')} />
               <TabButton icon={Settings} label="Festivos" active={activeTab === 'holidays'} onClick={() => setActiveTab('holidays')} />
               <TabButton icon={Calendar} label="Cal. Laboral" active={activeTab === 'workCalendar'} onClick={() => setActiveTab('workCalendar')} />
               <TabButton icon={FileText} label="Análisis Días" active={activeTab === 'workdayAnalysis'} onClick={() => setActiveTab('workdayAnalysis')} />
               <TabButton icon={Users} label="Departamentos" active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} />
+              <TabButton icon={Clock} label="Horarios Tipo" active={activeTab === 'scheduleTypes'} onClick={() => setActiveTab('scheduleTypes')} />
+              <TabButton icon={Check} label="Validar Marcajes" active={activeTab === 'timeclockValidation'} onClick={() => setActiveTab('timeclockValidation')} />
             </>}
-            {activeTab !== 'timeclock' && <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />}
-            {currentUser.isAdmin && activeTab !== 'timeclock' && <TabButton icon={MessageSquare} label="Feedback" active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />}
+            {!currentUser.isTimeclockManager && activeTab !== 'timeclock' && activeTab !== 'timeclockValidation' && activeTab !== 'scheduleTypes' && (
+              <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />
+            )}
+            {currentUser.isAdmin && activeTab !== 'timeclock' && activeTab !== 'timeclockValidation' && activeTab !== 'scheduleTypes' && (
+              <TabButton icon={MessageSquare} label="Feedback" active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />
+            )}
           </div>
           <div className="p-6">
             {activeTab === 'calendar' && <CalendarView view={calendarView} setView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} requests={requests} users={users} holidays={companyHolidays} filterDepartment={filterDepartment} setFilterDepartment={setFilterDepartment} filterUser={filterUser} setFilterUser={setFilterUser} departments={departments} getUserDepartments={getUserDepartments} onRequestClick={currentUser?.isAdmin ? handleRequestClick : null} />}
-            {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} />}
+            {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} scheduleTypes={scheduleTypes} />}
             {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} deleteRequest={deleteRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
             {activeTab === 'workCalendar' && currentUser.isAdmin && <WorkCalendarView holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} isAdmin={currentUser.isAdmin} />}
@@ -434,6 +483,8 @@ const VacationManager = () => {
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} updateUser={updateUser} selectedRequest={selectedRequest} setSelectedRequest={setSelectedRequest} />}
             {activeTab === 'feedback' && currentUser.isAdmin && <FeedbackManagement feedbacks={feedbacks} addFeedback={addFeedback} updateFeedback={updateFeedback} deleteFeedback={deleteFeedback} currentUser={currentUser} showNotification={showNotification} />}
             {activeTab === 'timeclock' && <TimeclockView currentUser={currentUser} timeclockRecords={timeclockRecords} addTimeclockRecord={addTimeclockRecord} updateTimeclockRecord={updateTimeclockRecord} deleteTimeclockRecord={deleteTimeclockRecord} timeclockSettings={timeclockSettings} saveTimeclockSettings={saveTimeclockSettings} users={users} showNotification={showNotification} requests={requests} holidays={companyHolidays} deleteRequest={deleteRequest} addRequest={addRequest} />}
+            {activeTab === 'scheduleTypes' && currentUser.isAdmin && <ScheduleTypesManagement scheduleTypes={scheduleTypes} addScheduleType={addScheduleType} updateScheduleType={updateScheduleType} deleteScheduleType={deleteScheduleType} users={users} showNotification={showNotification} />}
+            {activeTab === 'timeclockValidation' && (currentUser.isAdmin || currentUser.isTimeclockManager) && <TimeclockValidationView users={users} timeclockRecords={timeclockRecords} scheduleTypes={scheduleTypes} timeclockValidations={timeclockValidations} requests={requests} holidays={companyHolidays} addValidation={addValidation} updateValidation={updateValidation} updateTimeclockRecord={updateTimeclockRecord} addTimeclockRecord={addTimeclockRecord} currentUser={currentUser} showNotification={showNotification} toLocalDateString={toLocalDateString} />}
           </div>
         </div>
       </div>
@@ -1060,7 +1111,7 @@ const DepartmentsManagement = ({ departments, addDepartment, updateDepartment, d
   );
 };
 
-const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotification, calculateUserDays, requests, viewingUserHistory, setViewingUserHistory, departments, getUserDepartments }) => {
+const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotification, calculateUserDays, requests, viewingUserHistory, setViewingUserHistory, departments, getUserDepartments, scheduleTypes }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const defaultSchedule = {
@@ -1070,7 +1121,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
     jueves: { entrada: '08:00', salida: '17:00', activo: true },
     viernes: { entrada: '08:00', salida: '15:00', activo: true }
   };
-  const [formData, setFormData] = useState({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, schedule: defaultSchedule });
+  const [formData, setFormData] = useState({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, isTimeclockManager: false, scheduleTypeId: null, schedule: defaultSchedule });
 
   const calcDayHours = (day) => {
     if (!day.activo) return 0;
@@ -1098,7 +1149,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
     if (!formData.code || !formData.name || !formData.lastName || formData.departments.length === 0) { showNotification('error', 'Completa todos los campos'); return; }
     if (editingUser) await updateUser(editingUser.id, formData);
     else { if (users.some(u => u.code === formData.code)) { showNotification('error', 'Código duplicado'); return; } await addUser(formData); }
-    setShowForm(false); setEditingUser(null); setFormData({ code: '', name: '', lastName: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, schedule: defaultSchedule });
+    setShowForm(false); setEditingUser(null); setFormData({ code: '', name: '', lastName: '', phone: '', departments: [], totalDays: 22, carryOverDays: 0, isAdmin: false, isTimeclockManager: false, scheduleTypeId: null, schedule: defaultSchedule });
   };
 
   const toggleDept = (name) => setFormData(p => ({ ...p, departments: p.departments.includes(name) ? p.departments.filter(d => d !== name) : [...p.departments, name] }));
@@ -1233,7 +1284,23 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
               </table>
             </div>
           </div>
-          <label className="flex items-center space-x-2"><input type="checkbox" checked={formData.isAdmin} onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked })} className="w-4 h-4" /><span>Es Administrador</span></label>
+          <div>
+            <label className="block text-sm font-medium mb-2">Horario Tipo (para validación de marcajes)</label>
+            <select
+              value={formData.scheduleTypeId || ''}
+              onChange={(e) => setFormData({ ...formData, scheduleTypeId: e.target.value || null })}
+              className="w-full px-3 py-2 border rounded"
+            >
+              <option value="">Sin horario tipo asignado</option>
+              {scheduleTypes.map(st => (
+                <option key={st.id} value={st.id}>{st.name} ({st.weekday.entrada}-{st.weekday.salida} L-J, {st.friday.entrada}-{st.friday.salida} V)</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center space-x-2"><input type="checkbox" checked={formData.isAdmin} onChange={(e) => setFormData({ ...formData, isAdmin: e.target.checked, isTimeclockManager: e.target.checked ? false : formData.isTimeclockManager })} className="w-4 h-4" /><span>Es Administrador</span></label>
+            <label className="flex items-center space-x-2"><input type="checkbox" checked={formData.isTimeclockManager} onChange={(e) => setFormData({ ...formData, isTimeclockManager: e.target.checked, isAdmin: e.target.checked ? false : formData.isAdmin })} className="w-4 h-4" disabled={formData.isAdmin} /><span>Es Gestor de Marcajes (solo ve panel de validación)</span></label>
+          </div>
           <div className="flex space-x-2">
             <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">{editingUser ? 'Actualizar' : 'Crear'}</button>
             <button onClick={() => { setShowForm(false); setEditingUser(null); }} className="bg-gray-300 px-4 py-2 rounded">Cancelar</button>
@@ -1258,7 +1325,7 @@ const UsersManagement = ({ users, addUser, updateUser, deleteUser, showNotificat
                   <td className="px-4 py-3">
                     <div className="flex space-x-2">
                       <button onClick={() => setViewingUserHistory(user.code)} className="text-green-600"><FileText className="w-5 h-5" /></button>
-                      <button onClick={() => { setEditingUser(user); setFormData({ ...user, departments: getUserDepartments(user), schedule: user.schedule || defaultSchedule }); setShowForm(true); }} className="text-blue-600"><Eye className="w-5 h-5" /></button>
+                      <button onClick={() => { setEditingUser(user); setFormData({ ...user, departments: getUserDepartments(user), schedule: user.schedule || defaultSchedule, scheduleTypeId: user.scheduleTypeId || null, isTimeclockManager: user.isTimeclockManager || false }); setShowForm(true); }} className="text-blue-600"><Eye className="w-5 h-5" /></button>
                       <button onClick={() => deleteUser(user.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button>
                     </div>
                   </td>
@@ -5559,6 +5626,966 @@ const WorkCalendarView = ({ holidays, addHoliday, updateHoliday, deleteHoliday, 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {months.map((_, i) => renderMonth(i))}
       </div>
+    </div>
+  );
+};
+
+// ==================== SCHEDULE TYPES MANAGEMENT ====================
+const ScheduleTypesManagement = ({ scheduleTypes, addScheduleType, updateScheduleType, deleteScheduleType, users, showNotification }) => {
+  const [showForm, setShowForm] = useState(false);
+  const [editingType, setEditingType] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    weekday: { entrada: '08:00', salida: '17:00', breakfastMins: 15, lunchMins: 60 },
+    friday: { entrada: '08:00', salida: '15:00', breakfastMins: 15, lunchMins: 0 }
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      weekday: { entrada: '08:00', salida: '17:00', breakfastMins: 15, lunchMins: 60 },
+      friday: { entrada: '08:00', salida: '15:00', breakfastMins: 15, lunchMins: 0 }
+    });
+    setEditingType(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (type) => {
+    setEditingType(type);
+    setFormData({
+      name: type.name,
+      weekday: { ...type.weekday },
+      friday: { ...type.friday }
+    });
+    setShowForm(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      showNotification('error', 'El nombre es obligatorio');
+      return;
+    }
+    if (editingType) {
+      await updateScheduleType(editingType.id, formData);
+    } else {
+      await addScheduleType(formData);
+    }
+    resetForm();
+  };
+
+  const handleDelete = async (type) => {
+    const usersWithType = users.filter(u => u.scheduleTypeId === type.id);
+    if (usersWithType.length > 0) {
+      showNotification('error', `No se puede eliminar: ${usersWithType.length} usuario(s) tienen este horario asignado`);
+      return;
+    }
+    if (window.confirm(`¿Eliminar horario "${type.name}"?`)) {
+      await deleteScheduleType(type.id);
+    }
+  };
+
+  const getUsersWithSchedule = (typeId) => users.filter(u => u.scheduleTypeId === typeId);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-800">Horarios Tipo</h2>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+            <Plus className="w-4 h-4" />
+            <span>Nuevo Horario</span>
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="bg-gray-50 p-6 rounded-lg border space-y-4">
+          <h3 className="font-semibold text-lg">{editingType ? 'Editar Horario' : 'Nuevo Horario Tipo'}</h3>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Nombre del Horario</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg"
+              placeholder="Ej: Normal, Intensivo, Reducido..."
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Lunes a Jueves */}
+            <div className="bg-white p-4 rounded-lg border">
+              <h4 className="font-medium mb-3 text-indigo-700">Lunes a Jueves</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Entrada</label>
+                  <input
+                    type="time"
+                    value={formData.weekday.entrada}
+                    onChange={(e) => setFormData({ ...formData, weekday: { ...formData.weekday, entrada: e.target.value } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Salida</label>
+                  <input
+                    type="time"
+                    value={formData.weekday.salida}
+                    onChange={(e) => setFormData({ ...formData, weekday: { ...formData.weekday, salida: e.target.value } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Desayuno (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={formData.weekday.breakfastMins}
+                    onChange={(e) => setFormData({ ...formData, weekday: { ...formData.weekday, breakfastMins: parseInt(e.target.value) || 0 } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Comida (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={formData.weekday.lunchMins}
+                    onChange={(e) => setFormData({ ...formData, weekday: { ...formData.weekday, lunchMins: parseInt(e.target.value) || 0 } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Viernes */}
+            <div className="bg-white p-4 rounded-lg border">
+              <h4 className="font-medium mb-3 text-green-700">Viernes</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Entrada</label>
+                  <input
+                    type="time"
+                    value={formData.friday.entrada}
+                    onChange={(e) => setFormData({ ...formData, friday: { ...formData.friday, entrada: e.target.value } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Salida</label>
+                  <input
+                    type="time"
+                    value={formData.friday.salida}
+                    onChange={(e) => setFormData({ ...formData, friday: { ...formData.friday, salida: e.target.value } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Desayuno (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={formData.friday.breakfastMins}
+                    onChange={(e) => setFormData({ ...formData, friday: { ...formData.friday, breakfastMins: parseInt(e.target.value) || 0 } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Comida (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={formData.friday.lunchMins}
+                    onChange={(e) => setFormData({ ...formData, friday: { ...formData.friday, lunchMins: parseInt(e.target.value) || 0 } })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-3">
+            <button onClick={handleSubmit} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+              {editingType ? 'Guardar Cambios' : 'Crear Horario'}
+            </button>
+            <button onClick={resetForm} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de horarios */}
+      <div className="grid gap-4">
+        {scheduleTypes.map(type => {
+          const usersWithThis = getUsersWithSchedule(type.id);
+          return (
+            <div key={type.id} className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg text-gray-800">{type.name}</h3>
+                  <div className="mt-2 grid md:grid-cols-2 gap-4 text-sm">
+                    <div className="bg-indigo-50 p-2 rounded">
+                      <span className="font-medium text-indigo-700">L-J:</span> {type.weekday.entrada} - {type.weekday.salida}
+                      <span className="ml-2 text-gray-500">
+                        ({type.weekday.breakfastMins}min desayuno, {type.weekday.lunchMins}min comida)
+                      </span>
+                    </div>
+                    <div className="bg-green-50 p-2 rounded">
+                      <span className="font-medium text-green-700">V:</span> {type.friday.entrada} - {type.friday.salida}
+                      <span className="ml-2 text-gray-500">
+                        ({type.friday.breakfastMins}min desayuno{type.friday.lunchMins > 0 ? `, ${type.friday.lunchMins}min comida` : ''})
+                      </span>
+                    </div>
+                  </div>
+                  {usersWithThis.length > 0 && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Asignado a: {usersWithThis.map(u => `${u.name} ${u.lastName}`).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <div className="flex space-x-2 ml-4">
+                  <button onClick={() => handleEdit(type)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDelete(type)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {scheduleTypes.length === 0 && !showForm && (
+        <div className="text-center py-12 text-gray-500">
+          No hay horarios tipo definidos. Crea uno para empezar.
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== TIMECLOCK VALIDATION VIEW ====================
+const TimeclockValidationView = ({ users, timeclockRecords, scheduleTypes, timeclockValidations, requests, holidays, addValidation, updateValidation, updateTimeclockRecord, addTimeclockRecord, currentUser, showNotification, toLocalDateString }) => {
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [absenceComment, setAbsenceComment] = useState('');
+
+  // Helper: Obtener horario tipo de un usuario
+  const getUserScheduleType = (userCode) => {
+    const user = users.find(u => u.code === userCode);
+    if (!user?.scheduleTypeId) return null;
+    return scheduleTypes.find(s => s.id === user.scheduleTypeId);
+  };
+
+  // Helper: Verificar si tiene vacaciones aprobadas
+  const hasApprovedVacation = (userCode, dateStr) => {
+    return requests.some(r => {
+      if (r.userCode !== userCode || r.status !== 'approved') return false;
+      if (r.type === 'other') return false; // Los días 'other' no cuentan como vacaciones
+      if (r.isRange) {
+        return dateStr >= r.startDate && dateStr <= r.endDate;
+      }
+      return r.dates?.includes(dateStr);
+    });
+  };
+
+  // Helper: Verificar si es festivo
+  const isHolidayDay = (dateStr) => {
+    return holidays.some(h => h.date === dateStr && h.isLocal && !h.noSeRespeta);
+  };
+
+  // Helper: Obtener validación existente
+  const getValidation = (userCode, dateStr) => {
+    return timeclockValidations.find(v => v.userCode === userCode && v.date === dateStr);
+  };
+
+  // Helper: Obtener registro de fichaje
+  const getTimeclockRecord = (userCode, dateStr) => {
+    return timeclockRecords.find(r => r.userCode === userCode && r.date === dateStr);
+  };
+
+  // Detectar anomalías en un día
+  const detectAnomalies = (userCode, dateStr) => {
+    const anomalies = [];
+    const record = getTimeclockRecord(userCode, dateStr);
+    const scheduleType = getUserScheduleType(userCode);
+    const validation = getValidation(userCode, dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayOfWeek = date.getDay();
+
+    // Si ya está validado, no hay anomalía
+    if (validation) return [];
+
+    // Si es fin de semana, no es anomalía
+    if (dayOfWeek === 0 || dayOfWeek === 6) return [];
+
+    // Si es festivo, no es anomalía
+    if (isHolidayDay(dateStr)) return [];
+
+    // Si tiene vacaciones aprobadas, no es anomalía
+    if (hasApprovedVacation(userCode, dateStr)) return [];
+
+    // Si no hay registro, es anomalía
+    if (!record) {
+      anomalies.push({ type: 'missing', message: 'Sin registro de fichaje' });
+      return anomalies;
+    }
+
+    // Si hay horario tipo, comparar tiempos
+    if (scheduleType) {
+      const expected = dayOfWeek === 5 ? scheduleType.friday : scheduleType.weekday;
+
+      // Verificar entrada
+      if (record.startTime) {
+        const [expH, expM] = expected.entrada.split(':').map(Number);
+        const [actH, actM] = record.startTime.split(':').map(Number);
+        const diffMins = (actH * 60 + actM) - (expH * 60 + expM);
+        if (Math.abs(diffMins) > 15) {
+          anomalies.push({ type: 'entry', message: `Entrada ${diffMins > 0 ? 'tarde' : 'temprano'}: ${record.startTime} (esperado: ${expected.entrada})` });
+        }
+      }
+
+      // Verificar salida
+      if (record.endTime) {
+        const [expH, expM] = expected.salida.split(':').map(Number);
+        const [actH, actM] = record.endTime.split(':').map(Number);
+        const diffMins = (actH * 60 + actM) - (expH * 60 + expM);
+        if (Math.abs(diffMins) > 15) {
+          anomalies.push({ type: 'exit', message: `Salida ${diffMins > 0 ? 'tarde' : 'temprano'}: ${record.endTime} (esperado: ${expected.salida})` });
+        }
+      } else if (record.startTime) {
+        anomalies.push({ type: 'incomplete', message: 'Sin hora de salida' });
+      }
+    }
+
+    return anomalies;
+  };
+
+  // Calcular estado de un empleado
+  const getEmployeeStatus = (userCode) => {
+    const today = new Date();
+    const checkFrom = new Date(today);
+    checkFrom.setDate(checkFrom.getDate() - 30);
+
+    let anomalyCount = 0;
+    let validatedCount = 0;
+    let totalWorkDays = 0;
+
+    let checkDate = new Date(checkFrom);
+    while (checkDate <= today) {
+      const dateStr = toLocalDateString(checkDate);
+      const dayOfWeek = checkDate.getDay();
+
+      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isHolidayDay(dateStr)) {
+        totalWorkDays++;
+        const anomalies = detectAnomalies(userCode, dateStr);
+        if (anomalies.length > 0) {
+          anomalyCount++;
+        }
+        if (getValidation(userCode, dateStr)) {
+          validatedCount++;
+        }
+      }
+      checkDate.setDate(checkDate.getDate() + 1);
+    }
+
+    return { hasAnomalies: anomalyCount > 0, anomalyCount, validatedCount, totalWorkDays };
+  };
+
+  // Obtener estado visual de un día
+  const getDayStatus = (userCode, dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayOfWeek = date.getDay();
+
+    // Fin de semana
+    if (dayOfWeek === 0 || dayOfWeek === 6) return 'weekend';
+
+    // Festivo
+    if (isHolidayDay(dateStr)) return 'holiday';
+
+    // Vacaciones
+    if (hasApprovedVacation(userCode, dateStr)) return 'vacation';
+
+    // Validado
+    const validation = getValidation(userCode, dateStr);
+    if (validation) {
+      if (validation.status === 'absence_sick') return 'sick';
+      if (validation.status === 'absence_justified') return 'justified';
+      if (validation.status === 'absence_unjustified') return 'unjustified';
+      return 'validated';
+    }
+
+    // Sin registro
+    const record = getTimeclockRecord(userCode, dateStr);
+    if (!record) return 'missing';
+
+    // Con anomalías
+    const anomalies = detectAnomalies(userCode, dateStr);
+    if (anomalies.length > 0) return 'anomaly';
+
+    // OK (registro sin anomalías pero no validado)
+    return 'ok';
+  };
+
+  // Colores según estado
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'weekend': return 'bg-gray-200 text-gray-500';
+      case 'holiday': return 'bg-purple-200 text-purple-700';
+      case 'vacation': return 'bg-blue-200 text-blue-700';
+      case 'validated': return 'bg-green-200 text-green-700';
+      case 'sick': return 'bg-orange-200 text-orange-700';
+      case 'justified': return 'bg-yellow-200 text-yellow-700';
+      case 'unjustified': return 'bg-red-300 text-red-800';
+      case 'missing': return 'bg-red-200 text-red-700';
+      case 'anomaly': return 'bg-yellow-200 text-yellow-700';
+      case 'ok': return 'bg-green-100 text-green-600';
+      default: return 'bg-white';
+    }
+  };
+
+  // Validar un día
+  const handleValidateDay = async (status, comment = '') => {
+    const employee = users.find(u => u.code === selectedEmployee);
+    await addValidation({
+      userCode: selectedEmployee,
+      date: selectedDate,
+      validatedBy: currentUser.code,
+      validatedByName: `${currentUser.name} ${currentUser.lastName || ''}`.trim(),
+      validatedAt: new Date().toISOString(),
+      status,
+      comment
+    });
+    showNotification('success', 'Día validado correctamente');
+    setSelectedDate(null);
+    setAbsenceComment('');
+  };
+
+  // Guardar cambios en registro
+  const handleSaveRecord = async () => {
+    if (editingRecord.id) {
+      await updateTimeclockRecord(editingRecord.id, {
+        startTime: editingRecord.startTime,
+        endTime: editingRecord.endTime,
+        breaks: editingRecord.breaks || []
+      });
+    } else {
+      await addTimeclockRecord({
+        userCode: selectedEmployee,
+        date: selectedDate,
+        startTime: editingRecord.startTime,
+        endTime: editingRecord.endTime,
+        breaks: editingRecord.breaks || [],
+        manualEntry: true,
+        createdAt: new Date().toISOString()
+      });
+    }
+    showNotification('success', 'Registro actualizado');
+    setEditingRecord(null);
+  };
+
+  // Renderizar lista de empleados
+  const renderEmployeeList = () => {
+    const employees = users.filter(u => !u.isAdmin && !u.isTimeclockManager);
+
+    return (
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold text-gray-800">Validación de Marcajes</h2>
+        <p className="text-gray-600">Selecciona un empleado para revisar sus registros horarios</p>
+
+        <div className="grid gap-3">
+          {employees.map(user => {
+            const status = getEmployeeStatus(user.code);
+            const scheduleType = getUserScheduleType(user.code);
+            return (
+              <div
+                key={user.code}
+                onClick={() => setSelectedEmployee(user.code)}
+                className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                  status.hasAnomalies ? 'border-red-300 bg-red-50 hover:border-red-400' : 'border-green-300 bg-green-50 hover:border-green-400'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold text-gray-800">{user.name} {user.lastName}</p>
+                    <p className="text-sm text-gray-600">
+                      Horario: {scheduleType?.name || <span className="text-orange-600">Sin asignar</span>}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {status.hasAnomalies ? (
+                      <div>
+                        <span className="text-red-600 font-semibold">{status.anomalyCount} anomalía(s)</span>
+                        <p className="text-xs text-gray-500">{status.validatedCount}/{status.totalWorkDays} días validados</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-green-600 font-semibold flex items-center"><Check className="w-4 h-4 mr-1" /> OK</span>
+                        <p className="text-xs text-gray-500">{status.validatedCount}/{status.totalWorkDays} días validados</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {employees.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No hay empleados registrados
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Renderizar calendario mensual
+  const renderEmployeeCalendar = () => {
+    const employee = users.find(u => u.code === selectedEmployee);
+    const scheduleType = getUserScheduleType(selectedEmployee);
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay();
+    const adjustedStartDay = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    const weeks = [];
+    let currentWeek = [];
+
+    // Días vacíos al inicio
+    for (let i = 0; i < adjustedStartDay; i++) {
+      currentWeek.push(null);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dateStr = toLocalDateString(date);
+      const status = getDayStatus(selectedEmployee, dateStr);
+
+      currentWeek.push({ day, dateStr, status });
+
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(null);
+      }
+      weeks.push(currentWeek);
+    }
+
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <button onClick={() => setSelectedEmployee(null)} className="flex items-center text-indigo-600 hover:text-indigo-800">
+            <ChevronLeft className="w-5 h-5" />
+            <span>Volver</span>
+          </button>
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-gray-800">{employee?.name} {employee?.lastName}</h2>
+            <p className="text-sm text-gray-600">Horario: {scheduleType?.name || 'Sin asignar'}</p>
+          </div>
+          <div className="w-20"></div>
+        </div>
+
+        {/* Navegación de mes */}
+        <div className="flex items-center justify-center space-x-4">
+          <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 hover:bg-gray-100 rounded">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <span className="font-semibold text-lg">{monthNames[month]} {year}</span>
+          <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 hover:bg-gray-100 rounded">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Leyenda */}
+        <div className="flex flex-wrap gap-2 justify-center text-xs">
+          <span className="px-2 py-1 bg-green-200 rounded">Validado</span>
+          <span className="px-2 py-1 bg-green-100 rounded">OK (sin validar)</span>
+          <span className="px-2 py-1 bg-yellow-200 rounded">Anomalía</span>
+          <span className="px-2 py-1 bg-red-200 rounded">Sin registro</span>
+          <span className="px-2 py-1 bg-blue-200 rounded">Vacaciones</span>
+          <span className="px-2 py-1 bg-orange-200 rounded">Enfermo</span>
+          <span className="px-2 py-1 bg-purple-200 rounded">Festivo</span>
+          <span className="px-2 py-1 bg-gray-200 rounded">Fin de semana</span>
+        </div>
+
+        {/* Calendario */}
+        <div className="bg-white border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 bg-gray-100">
+            {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
+              <div key={i} className={`py-2 text-center font-medium text-sm ${i >= 5 ? 'text-gray-400' : 'text-gray-700'}`}>
+                {d}
+              </div>
+            ))}
+          </div>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 border-t">
+              {week.map((dayInfo, di) => {
+                if (!dayInfo) {
+                  return <div key={di} className="h-12 bg-gray-50"></div>;
+                }
+                const { day, dateStr, status } = dayInfo;
+                const today = toLocalDateString(new Date());
+                const isToday = dateStr === today;
+                const isFuture = dateStr > today;
+
+                return (
+                  <div
+                    key={di}
+                    onClick={() => !isFuture && status !== 'weekend' && setSelectedDate(dateStr)}
+                    className={`h-12 flex items-center justify-center text-sm font-medium cursor-pointer transition-all ${getStatusColor(status)} ${
+                      isToday ? 'ring-2 ring-indigo-500' : ''
+                    } ${isFuture || status === 'weekend' ? 'cursor-default opacity-60' : 'hover:opacity-80'}`}
+                  >
+                    {day}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizar detalle del día
+  const renderDayDetail = () => {
+    const employee = users.find(u => u.code === selectedEmployee);
+    const scheduleType = getUserScheduleType(selectedEmployee);
+    const record = getTimeclockRecord(selectedEmployee, selectedDate);
+    const validation = getValidation(selectedEmployee, selectedDate);
+    const hasVacation = hasApprovedVacation(selectedEmployee, selectedDate);
+    const isHoliday = isHolidayDay(selectedDate);
+    const dayOfWeek = new Date(selectedDate + 'T00:00:00').getDay();
+    const expected = scheduleType ? (dayOfWeek === 5 ? scheduleType.friday : scheduleType.weekday) : null;
+
+    const formatDate = (dateStr) => {
+      const [y, m, d] = dateStr.split('-');
+      const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const date = new Date(dateStr + 'T00:00:00');
+      return `${dayNames[date.getDay()]} ${d}/${m}/${y}`;
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <button onClick={() => setSelectedDate(null)} className="flex items-center text-indigo-600 hover:text-indigo-800">
+            <ChevronLeft className="w-5 h-5" />
+            <span>Volver al calendario</span>
+          </button>
+        </div>
+
+        <div className="bg-white border rounded-lg p-6 space-y-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">{formatDate(selectedDate)}</h3>
+              <p className="text-gray-600">{employee?.name} {employee?.lastName}</p>
+            </div>
+            {validation && (
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                validation.status === 'validated' ? 'bg-green-100 text-green-700' :
+                validation.status === 'absence_sick' ? 'bg-orange-100 text-orange-700' :
+                validation.status === 'absence_justified' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                {validation.status === 'validated' ? 'Validado' :
+                 validation.status === 'absence_sick' ? 'Enfermedad' :
+                 validation.status === 'absence_justified' ? 'Ausencia Justificada' :
+                 'Ausencia Sin Justificar'}
+              </span>
+            )}
+          </div>
+
+          {/* Mostrar info de vacaciones */}
+          {hasVacation && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800 font-semibold flex items-center">
+                <Calendar className="w-5 h-5 mr-2" />
+                Vacaciones Aprobadas
+              </p>
+              <p className="text-sm text-blue-600 mt-1">Este día tiene vacaciones aprobadas. No requiere validación de fichaje.</p>
+            </div>
+          )}
+
+          {/* Mostrar info de festivo */}
+          {isHoliday && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <p className="text-purple-800 font-semibold">Día Festivo</p>
+              <p className="text-sm text-purple-600 mt-1">Este día es festivo.</p>
+            </div>
+          )}
+
+          {/* Horario esperado */}
+          {expected && !hasVacation && !isHoliday && (
+            <div className="bg-gray-50 p-3 rounded-lg text-sm">
+              <p className="font-medium text-gray-700">Horario esperado ({scheduleType.name}):</p>
+              <p className="text-gray-600">
+                Entrada: {expected.entrada} | Salida: {expected.salida} |
+                Desayuno: {expected.breakfastMins}min | Comida: {expected.lunchMins}min
+              </p>
+            </div>
+          )}
+
+          {/* Si no hay registro ni vacaciones ni festivo */}
+          {!record && !hasVacation && !isHoliday && !validation && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-4">
+              <p className="text-red-700 font-semibold">Sin registro de fichaje</p>
+
+              <div className="space-y-2">
+                <p className="font-medium text-gray-700">Indicar motivo de ausencia:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleValidateDay('absence_sick')}
+                    className="px-4 py-2 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition-colors"
+                  >
+                    Enfermedad
+                  </button>
+                  <button
+                    onClick={() => setAbsenceComment('show')}
+                    className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
+                  >
+                    Motivo Justificado
+                  </button>
+                  <button
+                    onClick={() => handleValidateDay('absence_unjustified')}
+                    className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    Sin Justificar
+                  </button>
+                </div>
+
+                {absenceComment === 'show' && (
+                  <div className="mt-3 space-y-2">
+                    <label className="block text-sm font-medium">Comentario:</label>
+                    <textarea
+                      value={absenceComment !== 'show' ? absenceComment : ''}
+                      onChange={(e) => setAbsenceComment(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      rows={2}
+                      placeholder="Describe el motivo de la ausencia..."
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleValidateDay('absence_justified', absenceComment !== 'show' ? absenceComment : '')}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        onClick={() => setAbsenceComment('')}
+                        className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <p className="text-sm text-gray-600 mb-2">O crear registro manual:</p>
+                <button
+                  onClick={() => setEditingRecord({ startTime: expected?.entrada || '08:00', endTime: expected?.salida || '17:00', breaks: [] })}
+                  className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200"
+                >
+                  Crear Registro Manual
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Si hay registro */}
+          {record && !hasVacation && !isHoliday && (
+            <div className="space-y-4">
+              {editingRecord ? (
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Entrada</label>
+                      <input
+                        type="time"
+                        value={editingRecord.startTime || ''}
+                        onChange={(e) => setEditingRecord({ ...editingRecord, startTime: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Salida</label>
+                      <input
+                        type="time"
+                        value={editingRecord.endTime || ''}
+                        onChange={(e) => setEditingRecord({ ...editingRecord, endTime: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Editor de pausas */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Pausas</label>
+                    {(editingRecord.breaks || []).map((brk, idx) => (
+                      <div key={idx} className="flex items-center space-x-2 mb-2">
+                        <span className="text-sm w-20">{brk.type === 'desayuno' ? 'Desayuno' : 'Comida'}:</span>
+                        <input
+                          type="time"
+                          value={brk.startTime || ''}
+                          onChange={(e) => {
+                            const newBreaks = [...editingRecord.breaks];
+                            newBreaks[idx] = { ...brk, startTime: e.target.value };
+                            setEditingRecord({ ...editingRecord, breaks: newBreaks });
+                          }}
+                          className="px-2 py-1 border rounded text-sm"
+                        />
+                        <span>-</span>
+                        <input
+                          type="time"
+                          value={brk.endTime || ''}
+                          onChange={(e) => {
+                            const newBreaks = [...editingRecord.breaks];
+                            newBreaks[idx] = { ...brk, endTime: e.target.value };
+                            setEditingRecord({ ...editingRecord, breaks: newBreaks });
+                          }}
+                          className="px-2 py-1 border rounded text-sm"
+                        />
+                        <button
+                          onClick={() => {
+                            const newBreaks = editingRecord.breaks.filter((_, i) => i !== idx);
+                            setEditingRecord({ ...editingRecord, breaks: newBreaks });
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setEditingRecord({ ...editingRecord, breaks: [...(editingRecord.breaks || []), { type: 'desayuno', startTime: '', endTime: '' }] })}
+                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                      >
+                        + Desayuno
+                      </button>
+                      <button
+                        onClick={() => setEditingRecord({ ...editingRecord, breaks: [...(editingRecord.breaks || []), { type: 'comida', startTime: '', endTime: '' }] })}
+                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                      >
+                        + Comida
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <button onClick={handleSaveRecord} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditingRecord(null)} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white border rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <span className="text-sm text-gray-500">Entrada</span>
+                      <p className="font-semibold text-lg">{record.startTime || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Salida</span>
+                      <p className="font-semibold text-lg">{record.endTime || '-'}</p>
+                    </div>
+                  </div>
+
+                  {record.breaks && record.breaks.length > 0 && (
+                    <div className="mb-4">
+                      <span className="text-sm text-gray-500">Pausas</span>
+                      {record.breaks.map((brk, idx) => (
+                        <p key={idx} className="text-sm">
+                          {brk.type === 'desayuno' ? 'Desayuno' : 'Comida'}: {brk.startTime} - {brk.endTime || 'en curso'}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Anomalías detectadas */}
+                  {!validation && detectAnomalies(selectedEmployee, selectedDate).length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                      <p className="font-medium text-yellow-800 mb-1">Anomalías detectadas:</p>
+                      <ul className="text-sm text-yellow-700 list-disc list-inside">
+                        {detectAnomalies(selectedEmployee, selectedDate).map((a, i) => (
+                          <li key={i}>{a.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {!validation && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setEditingRecord({ ...record })}
+                        className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 flex items-center"
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" /> Editar
+                      </button>
+                      <button
+                        onClick={() => handleValidateDay('validated')}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                      >
+                        <Check className="w-4 h-4 mr-1" /> Validar Día
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Información de validación existente */}
+          {validation && (
+            <div className="bg-gray-50 border rounded-lg p-4 mt-4">
+              <p className="text-sm text-gray-600">
+                Validado por: <span className="font-medium">{validation.validatedByName || validation.validatedBy}</span>
+              </p>
+              <p className="text-sm text-gray-600">
+                Fecha: {new Date(validation.validatedAt).toLocaleString()}
+              </p>
+              {validation.comment && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Comentario: <span className="italic">{validation.comment}</span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {!selectedEmployee && renderEmployeeList()}
+      {selectedEmployee && !selectedDate && renderEmployeeCalendar()}
+      {selectedEmployee && selectedDate && renderDayDetail()}
     </div>
   );
 };
