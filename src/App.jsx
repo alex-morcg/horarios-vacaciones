@@ -3376,6 +3376,229 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
   );
 };
 
+// ==================== YEARLY BY MONTHS TABLE ====================
+const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onMonthClick, viewMode = 'horas' }) => {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const monthNamesShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  // Calculate break duration in minutes
+  const getBreakMinutes = (record, breakType) => {
+    if (!record?.breaks) return 0;
+    const brk = record.breaks.find(b => b.type === breakType);
+    if (!brk || !brk.startTime || !brk.endTime) return 0;
+    const start = new Date(`2000-01-01T${brk.startTime}`);
+    const end = new Date(`2000-01-01T${brk.endTime}`);
+    return Math.floor((end - start) / 60000);
+  };
+
+  // Get stats for a user in a specific month
+  const getMonthStats = (userCode, monthIndex) => {
+    const monthStart = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(selectedYear, monthIndex + 1, 0).getDate();
+    const monthEnd = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const monthRecords = timeclockRecords.filter(r => {
+      if (r.userCode !== userCode) return false;
+      return r.date >= monthStart && r.date <= monthEnd;
+    });
+
+    let workedMins = 0;
+    let breakfastMins = 0;
+    let lunchMins = 0;
+
+    monthRecords.forEach(r => {
+      if (r.endTime) {
+        const worked = calculateWorkedTime(r);
+        workedMins += worked.hours * 60 + worked.minutes;
+        breakfastMins += getBreakMinutes(r, 'desayuno');
+        lunchMins += getBreakMinutes(r, 'comida');
+      }
+    });
+
+    return { workedMins, breakfastMins, lunchMins };
+  };
+
+  const formatMinutes = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    return `${h}h${m > 0 ? `${m}m` : ''}`;
+  };
+
+  const formatHours = (mins) => {
+    if (mins === 0) return '-';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Format minutes as days (mins / 480, 1 decimal)
+  const formatDays = (mins) => {
+    if (mins === 0) return '-';
+    const days = mins / 480; // 8 hours = 480 minutes
+    return days.toFixed(1).replace('.', ',') + 'd';
+  };
+
+  // Format based on viewMode
+  const formatValue = (mins) => viewMode === 'dias' ? formatDays(mins) : formatHours(mins);
+
+  return (
+    <div className="space-y-4">
+      {/* Year selector */}
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setSelectedYear(selectedYear - 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+        >
+          <ChevronLeft className="w-4 h-4" /> {selectedYear - 1}
+        </button>
+        <h3 className="text-xl font-bold">{selectedYear}</h3>
+        <button
+          onClick={() => setSelectedYear(selectedYear + 1)}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 flex items-center gap-2"
+          disabled={selectedYear >= currentYear}
+        >
+          {selectedYear + 1} <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Yearly by months table */}
+      <div className="relative">
+        <div className="overflow-x-auto" style={{ marginRight: '150px' }}>
+          <table className="border-collapse text-xs">
+            <thead>
+              {/* Month headers */}
+              <tr className="bg-indigo-700 text-white">
+                <th className="p-2 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20 min-w-[140px]" rowSpan={2}>
+                  Empleado
+                </th>
+                {monthNamesShort.map((month, idx) => (
+                  <th
+                    key={idx}
+                    colSpan={3}
+                    className="p-2 border border-indigo-600 text-center cursor-pointer hover:bg-indigo-600"
+                    onClick={() => onMonthClick && onMonthClick(idx, selectedYear)}
+                    title={`Ver ${monthNames[idx]} ${selectedYear}`}
+                  >
+                    {month}
+                  </th>
+                ))}
+              </tr>
+              {/* Sub-headers row */}
+              <tr className="bg-indigo-100 text-indigo-800">
+                {monthNamesShort.map((_, idx) => (
+                  <React.Fragment key={`sub-${idx}`}>
+                    <th className="p-1 border text-center" style={{ minWidth: '40px' }}>T</th>
+                    <th className="p-1 border text-center" style={{ minWidth: '35px' }}>D</th>
+                    <th className="p-1 border text-center" style={{ minWidth: '35px' }}>C</th>
+                  </React.Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {users.filter(u => !u.isAdmin).map(user => {
+                const monthCells = monthNamesShort.map((_, monthIdx) => {
+                  const stats = getMonthStats(user.code, monthIdx);
+
+                  return (
+                    <React.Fragment key={`${user.code}-${monthIdx}`}>
+                      <td
+                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-green-700"
+                        onClick={() => onMonthClick && onMonthClick(monthIdx, selectedYear)}
+                      >
+                        {formatValue(stats.workedMins)}
+                      </td>
+                      <td
+                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-orange-600"
+                        onClick={() => onMonthClick && onMonthClick(monthIdx, selectedYear)}
+                      >
+                        {formatMinutes(stats.breakfastMins)}
+                      </td>
+                      <td
+                        className="p-1 border text-center cursor-pointer hover:bg-gray-100 text-blue-600"
+                        onClick={() => onMonthClick && onMonthClick(monthIdx, selectedYear)}
+                      >
+                        {formatMinutes(stats.lunchMins)}
+                      </td>
+                    </React.Fragment>
+                  );
+                });
+
+                return (
+                  <tr key={user.code} className="hover:bg-gray-50">
+                    <td className="p-2 border font-medium sticky left-0 bg-white z-10 min-w-[140px]">
+                      {user.name} {user.lastName}
+                    </td>
+                    {monthCells}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Fixed totals on the right */}
+        <div className="absolute top-0 right-0 bg-white border-l-2 border-indigo-300 shadow-lg" style={{ width: '150px' }}>
+          <table className="border-collapse text-xs w-full">
+            <thead>
+              <tr className="bg-indigo-800 text-white">
+                <th colSpan={3} className="p-2 border border-indigo-700 text-center" style={{ height: '37px' }}>
+                  Total Anual
+                </th>
+              </tr>
+              <tr className="bg-indigo-200 text-indigo-800">
+                <th className="p-1 border text-center" style={{ width: '50px' }}>T</th>
+                <th className="p-1 border text-center" style={{ width: '50px' }}>D</th>
+                <th className="p-1 border text-center" style={{ width: '50px' }}>C</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.filter(u => !u.isAdmin).map(user => {
+                let yearWorkedMins = 0;
+                let yearBreakfastMins = 0;
+                let yearLunchMins = 0;
+
+                monthNamesShort.forEach((_, monthIdx) => {
+                  const stats = getMonthStats(user.code, monthIdx);
+                  yearWorkedMins += stats.workedMins;
+                  yearBreakfastMins += stats.breakfastMins;
+                  yearLunchMins += stats.lunchMins;
+                });
+
+                return (
+                  <tr key={user.code} className="bg-indigo-50">
+                    <td className="p-1 border text-center font-bold text-green-700" style={{ height: '33px' }}>
+                      {formatValue(yearWorkedMins)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-orange-600">
+                      {formatMinutes(yearBreakfastMins)}
+                    </td>
+                    <td className="p-1 border text-center font-bold text-blue-600">
+                      {formatMinutes(yearLunchMins)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs text-gray-600 mt-4">
+        <span><span className="text-green-700 font-medium">T</span> = {viewMode === 'dias' ? 'Días trabajados' : 'Horas trabajadas'}</span>
+        <span><span className="text-orange-600">D</span> = Pausa desayuno</span>
+        <span><span className="text-blue-600">C</span> = Pausa comida</span>
+        <span className="text-gray-500">Click en mes para ver detalle</span>
+      </div>
+    </div>
+  );
+};
+
 // ==================== ADMIN VIEW ====================
 const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTimeclockSettings, addTimeclockRecord, updateTimeclockRecord, deleteTimeclockRecord, showNotification, calculateWorkedTime, requests, holidays, deleteRequest, addRequest, currentUser }) => {
   const [activeAdminTab, setActiveAdminTab] = useState('estadisticas');
@@ -3387,6 +3610,7 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
   const [editingRecord, setEditingRecord] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
 
   // GPS Settings state
   const [gpsForm, setGpsForm] = useState({
@@ -3632,7 +3856,7 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
         <div className="space-y-4">
           {/* Sub-tabs and view mode selector */}
           <div className="flex justify-between items-center flex-wrap gap-4">
-            {/* Sub-tabs: Semanal / Mensual / Anual */}
+            {/* Sub-tabs: Semanal / Mes / Año/Semanas / Año/Meses */}
             <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
               <button
                 onClick={() => setStatsSubTab('semanal')}
@@ -3644,13 +3868,19 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
                 onClick={() => setStatsSubTab('mensual')}
                 className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'mensual' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
               >
-                Mensual
+                Mes
               </button>
               <button
                 onClick={() => setStatsSubTab('anual')}
                 className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'anual' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
               >
-                Anual
+                Año/Semanas
+              </button>
+              <button
+                onClick={() => setStatsSubTab('anualMeses')}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${statsSubTab === 'anualMeses' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Año/Meses
               </button>
             </div>
 
@@ -3701,6 +3931,8 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
               calculateWorkedTime={calculateWorkedTime}
               requests={requests}
               holidays={holidays}
+              monthOffset={monthOffset}
+              setMonthOffset={setMonthOffset}
               viewMode={statsViewMode}
               onCellClick={(date, userCode) => {
                 setSelectedDate(date);
@@ -3710,7 +3942,7 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
             />
           )}
 
-          {/* Yearly Stats */}
+          {/* Yearly Stats by Weeks */}
           {statsSubTab === 'anual' && (
             <YearlyStatsTable
               timeclockRecords={timeclockRecords}
@@ -3726,6 +3958,25 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
                 const diffWeeks = Math.floor(diffDays / 7);
                 setWeekOffset(diffWeeks);
                 setStatsSubTab('semanal');
+              }}
+            />
+          )}
+
+          {/* Yearly Stats by Months */}
+          {statsSubTab === 'anualMeses' && (
+            <YearlyByMonthsTable
+              timeclockRecords={timeclockRecords}
+              users={users}
+              calculateWorkedTime={calculateWorkedTime}
+              viewMode={statsViewMode}
+              onMonthClick={(monthIndex, year) => {
+                // Calculate month offset from current month
+                const today = new Date();
+                const currentMonth = today.getFullYear() * 12 + today.getMonth();
+                const targetMonth = year * 12 + monthIndex;
+                const offset = targetMonth - currentMonth;
+                setMonthOffset(offset);
+                setStatsSubTab('mensual');
               }}
             />
           )}
