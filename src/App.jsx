@@ -25,70 +25,151 @@ const VacationManager = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
 
   const defaultHolidays = [
-    // 2025
-    { date: '2025-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-01-06', name: 'Reyes', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-04-18', name: 'Viernes Santo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-04-21', name: 'Lunes de Pascua', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-06-24', name: 'San Juan', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-08-15', name: 'Asunción', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-09-11', name: 'Diada de Cataluña', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-09-24', name: 'La Mercè', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-10-12', name: 'Fiesta Nacional', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-12-06', name: 'Constitución', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-12-08', name: 'Inmaculada', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-12-25', name: 'Navidad', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2025-12-26', name: 'San Esteban', isLocal: true, holidayType: 'local', emoji: '📅' },
-    // 2026
-    { date: '2026-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-01-06', name: 'Reyes', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-04-03', name: 'Viernes Santo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-04-06', name: 'Lunes de Pascua', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-06-24', name: 'San Juan', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-08-15', name: 'Asunción', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-09-11', name: 'Diada de Cataluña', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-09-24', name: 'La Mercè', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-10-12', name: 'Fiesta Nacional', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-12-06', name: 'Constitución', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-12-08', name: 'Inmaculada', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-12-25', name: 'Navidad', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2026-12-26', name: 'San Esteban', isLocal: true, holidayType: 'local', emoji: '📅' },
-    // 2027
-    { date: '2027-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-01-06', name: 'Reyes', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-03-26', name: 'Viernes Santo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-03-29', name: 'Lunes de Pascua', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-06-24', name: 'San Juan', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-08-15', name: 'Asunción', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-09-11', name: 'Diada de Cataluña', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-09-24', name: 'La Mercè', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-10-12', name: 'Fiesta Nacional', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-12-06', name: 'Constitución', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-12-08', name: 'Inmaculada', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-12-25', name: 'Navidad', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2027-12-26', name: 'San Esteban', isLocal: true, holidayType: 'local', emoji: '📅' },
-    // 2028
-    { date: '2028-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-01-06', name: 'Reyes', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-04-14', name: 'Viernes Santo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-04-17', name: 'Lunes de Pascua', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-06-24', name: 'San Juan', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-08-15', name: 'Asunción', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-09-11', name: 'Diada de Cataluña', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-09-24', name: 'La Mercè', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-10-12', name: 'Fiesta Nacional', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-12-06', name: 'Constitución', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-12-08', name: 'Inmaculada', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-12-25', name: 'Navidad', isLocal: true, holidayType: 'local', emoji: '📅' },
-    { date: '2028-12-26', name: 'San Esteban', isLocal: true, holidayType: 'local', emoji: '📅' },
+    // === 2022 ===
+    // Nacionales España
+    { date: '2022-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-04-15', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-12-08', name: 'Inmaculada Concepción', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2022-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2022-04-18', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2022-06-06', name: 'Lunes de Pascua Granada', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2022-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2022-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2022-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí
+    { date: '2022-09-24', name: 'Festa Major (Mercè)', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2022-09-26', name: 'Festa Major', isLocal: true, holidayType: 'local', emoji: '📍' },
+
+    // === 2023 ===
+    // Nacionales España
+    { date: '2023-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-04-07', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-12-08', name: 'Inmaculada Concepción', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2023-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2023-04-10', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2023-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2023-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2023-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí
+    { date: '2023-06-05', name: 'Lunes de Pascua Granada', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2023-09-25', name: 'Festa Major (Mercè)', isLocal: true, holidayType: 'local', emoji: '📍' },
+
+    // === 2024 ===
+    // Nacionales España
+    { date: '2024-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-03-29', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2024-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2024-04-01', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2024-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2024-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2024-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí
+    { date: '2024-05-20', name: 'Lunes de Pascua Granada', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2024-09-24', name: 'Festa Major (Mercè)', isLocal: true, holidayType: 'local', emoji: '📍' },
+
+    // === 2025 ===
+    // Nacionales España
+    { date: '2025-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-04-18', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-12-08', name: 'Inmaculada Concepción', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2025-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2025-04-21', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2025-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2025-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2025-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí
+    { date: '2025-06-09', name: 'Lunes de Pascua Granada', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2025-09-24', name: 'Festa Major (Mercè)', isLocal: true, holidayType: 'local', emoji: '📍' },
+
+    // === 2026 ===
+    // Nacionales España
+    { date: '2026-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-04-03', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-12-08', name: 'Inmaculada Concepción', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2026-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2026-04-06', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2026-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2026-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2026-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí
+    { date: '2026-05-25', name: 'Lunes de Pascua Granada', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2026-09-29', name: 'Festa Major', isLocal: true, holidayType: 'local', emoji: '📍' },
+
+    // === 2027 ===
+    // Nacionales España
+    { date: '2027-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-03-26', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-12-08', name: 'Inmaculada Concepción', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2027-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2027-03-29', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2027-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2027-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2027-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí (estimados basado en patrones)
+    { date: '2027-05-17', name: 'Festa Local', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2027-09-24', name: 'Festa Major (Mercè)', isLocal: true, holidayType: 'local', emoji: '📍' },
+
+    // === 2028 ===
+    // Nacionales España
+    { date: '2028-01-01', name: 'Año Nuevo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-01-06', name: 'Epifanía del Señor', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-04-14', name: 'Viernes Santo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-05-01', name: 'Fiesta del Trabajo', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-08-15', name: 'Asunción de la Virgen', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-10-12', name: 'Fiesta Nacional de España', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-11-01', name: 'Todos los Santos', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-12-06', name: 'Día de la Constitución', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-12-08', name: 'Inmaculada Concepción', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    { date: '2028-12-25', name: 'Navidad', isLocal: true, holidayType: 'nacional', emoji: '🇪🇸' },
+    // Autonómicos Catalunya
+    { date: '2028-04-17', name: 'Lunes de Pascua', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2028-06-24', name: 'Sant Joan', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2028-09-11', name: 'Diada de Catalunya', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    { date: '2028-12-26', name: 'Sant Esteve', isLocal: true, holidayType: 'autonomico', emoji: '🏴' },
+    // Locales Sant Joan Despí (estimados basado en patrones)
+    { date: '2028-06-05', name: 'Festa Local', isLocal: true, holidayType: 'local', emoji: '📍' },
+    { date: '2028-09-25', name: 'Festa Major (Mercè)', isLocal: true, holidayType: 'local', emoji: '📍' },
   ];
 
   useEffect(() => {
@@ -136,7 +217,7 @@ const VacationManager = () => {
   const showNotification = (type, message) => { setNotification({ type, message }); setTimeout(() => setNotification(null), 3000); };
   const handleLogout = () => { setCurrentUser(null); setLoginCode(''); setActiveTab('calendar'); };
   const isWeekend = (date) => { const d = new Date(date).getDay(); return d === 0 || d === 6; };
-  const isHoliday = (date) => companyHolidays.some(h => h.date === date && h.isLocal === true);
+  const isHoliday = (date) => companyHolidays.some(h => h.date === date && h.isLocal === true && !h.noSeRespeta);
 
   const handleLogin = () => {
     const user = users.find(u => u.code === loginCode);
@@ -248,8 +329,8 @@ const VacationManager = () => {
       setActiveTab('myRequests');
     }
   };
-  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: h.holidayType === 'local', holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo añadido'); };
-  const updateHoliday = async (id, h) => { await updateDoc(doc(db, 'vacation_holidays', id), { ...h, isLocal: h.holidayType === 'local', holidayType: h.holidayType || 'closure', emoji: h.emoji }); showNotification('success', 'Festivo actualizado'); };
+  const addHoliday = async (h) => { await addDoc(collection(db, 'vacation_holidays'), { ...h, isLocal: ['nacional', 'autonomico', 'local'].includes(h.holidayType), holidayType: h.holidayType || 'closure', emoji: h.emoji, noSeRespeta: h.noSeRespeta || false }); showNotification('success', 'Festivo añadido'); };
+  const updateHoliday = async (id, h) => { await updateDoc(doc(db, 'vacation_holidays', id), { ...h, isLocal: ['nacional', 'autonomico', 'local'].includes(h.holidayType), holidayType: h.holidayType || 'closure', emoji: h.emoji, noSeRespeta: h.noSeRespeta || false }); showNotification('success', 'Festivo actualizado'); };
   const deleteHoliday = async (id) => { await deleteDoc(doc(db, 'vacation_holidays', id)); showNotification('success', 'Festivo eliminado'); };
   const addDepartment = async (d) => { await addDoc(collection(db, 'vacation_departments'), d); showNotification('success', 'Departamento creado'); };
   const updateDepartment = async (id, d) => { await updateDoc(doc(db, 'vacation_departments', id), d); showNotification('success', 'Departamento actualizado'); };
@@ -328,6 +409,8 @@ const VacationManager = () => {
               <TabButton icon={Users} label="Usuarios" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
               <TabButton icon={FileText} label="Aprobar" active={activeTab === 'approve'} onClick={() => setActiveTab('approve')} />
               <TabButton icon={Settings} label="Festivos" active={activeTab === 'holidays'} onClick={() => setActiveTab('holidays')} />
+              <TabButton icon={Calendar} label="Cal. Laboral" active={activeTab === 'workCalendar'} onClick={() => setActiveTab('workCalendar')} />
+              <TabButton icon={FileText} label="Análisis Días" active={activeTab === 'workdayAnalysis'} onClick={() => setActiveTab('workdayAnalysis')} />
               <TabButton icon={Users} label="Departamentos" active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} />
             </>}
             {activeTab !== 'timeclock' && <TabButton icon={FileText} label="Mis Solicitudes" active={activeTab === 'myRequests'} onClick={() => setActiveTab('myRequests')} />}
@@ -338,6 +421,8 @@ const VacationManager = () => {
             {activeTab === 'users' && currentUser.isAdmin && <UsersManagement users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} showNotification={showNotification} calculateUserDays={calculateUserDays} requests={requests} viewingUserHistory={viewingUserHistory} setViewingUserHistory={setViewingUserHistory} departments={departments} getUserDepartments={getUserDepartments} />}
             {activeTab === 'approve' && currentUser.isAdmin && <ApproveRequests requests={requests} updateRequest={updateRequest} deleteRequest={deleteRequest} users={users} calculateUserDays={calculateUserDays} getBusinessDays={getBusinessDays} currentUser={currentUser} getUserDepartments={getUserDepartments} showNotification={showNotification} isWeekend={isWeekend} isHoliday={isHoliday} />}
             {activeTab === 'holidays' && currentUser.isAdmin && <HolidaysManagement holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} />}
+            {activeTab === 'workCalendar' && currentUser.isAdmin && <WorkCalendarView holidays={companyHolidays} addHoliday={addHoliday} updateHoliday={updateHoliday} deleteHoliday={deleteHoliday} showNotification={showNotification} isAdmin={currentUser.isAdmin} />}
+            {activeTab === 'workdayAnalysis' && currentUser.isAdmin && <WorkdayAnalysisView users={users} timeclockRecords={timeclockRecords} requests={requests} holidays={companyHolidays} isWeekend={isWeekend} />}
             {activeTab === 'departments' && currentUser.isAdmin && <DepartmentsManagement departments={departments} addDepartment={addDepartment} updateDepartment={updateDepartment} deleteDepartment={deleteDepartment} showNotification={showNotification} users={users} getUserDepartments={getUserDepartments} />}
             {activeTab === 'myRequests' && <MyRequests currentUser={currentUser} requests={requests} addRequest={addRequest} deleteRequest={deleteRequest} calculateUserDays={calculateUserDays} isWeekend={isWeekend} isHoliday={isHoliday} getBusinessDays={getBusinessDays} showNotification={showNotification} users={users} departments={departments} getUserDepartments={getUserDepartments} updateUser={updateUser} selectedRequest={selectedRequest} setSelectedRequest={setSelectedRequest} />}
             {activeTab === 'feedback' && currentUser.isAdmin && <FeedbackManagement feedbacks={feedbacks} addFeedback={addFeedback} updateFeedback={updateFeedback} deleteFeedback={deleteFeedback} currentUser={currentUser} showNotification={showNotification} />}
@@ -1418,28 +1503,40 @@ const ApprovedRequestsSubTabs = ({ approvedCurrent, approvedPast, users, getReqD
 const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday, showNotification }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
-  const [activeTab, setActiveTab] = useState('current');
-  const [formData, setFormData] = useState({ date: '', name: '', holidayType: 'closure', emoji: '🏢' });
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [formData, setFormData] = useState({ date: '', name: '', holidayType: 'closure', emoji: '🏢', noSeRespeta: false });
 
-  const emojiOptions = ['🏢', '🔄', '🎄', '🎅', '🎁', '⭐', '🌟', '💼', '📅', '🗓️', '✨', '🎊', '🎈', '🏖️', '🌴', '☀️', '❄️', '🎃', '🐰', '💝'];
+  const emojiOptions = ['🇪🇸', '🏴', '📍', '🏢', '🔄', '🎄', '🎅', '🎁', '⭐', '🌟', '💼', '📅', '🗓️', '✨', '🎊', '🎈', '🏖️', '🌴', '☀️', '❄️', '🎃', '🐰', '💝'];
 
-  const today = new Date().toISOString().split('T')[0];
+  // Años disponibles (2022-2028)
+  const availableYears = [2022, 2023, 2024, 2025, 2026, 2027, 2028];
 
-  // Show all holidays
-  const currentHolidays = holidays.filter(h => h.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-  const pastHolidays = holidays.filter(h => h.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  // Filtrar festivos por año seleccionado
+  const yearHolidays = holidays.filter(h => h.date && h.date.startsWith(String(selectedYear))).sort((a, b) => a.date.localeCompare(b.date));
 
   const getHolidayEmoji = (h) => {
     if (h.emoji) return h.emoji;
-    if (h.isLocal || h.holidayType === 'local') return '📅';
+    if (h.holidayType === 'nacional') return '🇪🇸';
+    if (h.holidayType === 'autonomico') return '🏴';
+    if (h.holidayType === 'local') return '📍';
     if (h.holidayType === 'turno') return '🔄';
     return '🏢';
   };
 
   const getHolidayTypeName = (h) => {
-    if (h.isLocal || h.holidayType === 'local') return 'Festivo local';
+    if (h.holidayType === 'nacional') return 'Nacional';
+    if (h.holidayType === 'autonomico') return 'Autonómico';
+    if (h.holidayType === 'local') return 'Local';
     if (h.holidayType === 'turno') return 'Turno';
     return 'Día de cierre';
+  };
+
+  const getHolidayTypeColor = (h) => {
+    if (h.holidayType === 'nacional') return 'text-red-600';
+    if (h.holidayType === 'autonomico') return 'text-yellow-600';
+    if (h.holidayType === 'local') return 'text-blue-600';
+    if (h.holidayType === 'turno') return 'text-orange-600';
+    return 'text-purple-600';
   };
 
   const handleSubmit = async () => {
@@ -1450,43 +1547,54 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
     } else {
       await addHoliday(formData);
     }
-    setShowForm(false); setFormData({ date: '', name: '', holidayType: 'closure', emoji: '🏢' });
+    setShowForm(false); setFormData({ date: '', name: '', holidayType: 'closure', emoji: '🏢', noSeRespeta: false });
   };
 
   const startEdit = (h) => {
     setEditingHoliday(h);
-    setFormData({ date: h.date, name: h.name, holidayType: h.holidayType || 'closure', emoji: h.emoji || getHolidayEmoji(h) });
+    setFormData({ date: h.date, name: h.name, holidayType: h.holidayType || 'closure', emoji: h.emoji || getHolidayEmoji(h), noSeRespeta: h.noSeRespeta || false });
     setShowForm(true);
   };
 
-  const renderTable = (holidayList, showActions = true) => (
+  const toggleNoSeRespeta = async (h) => {
+    await updateHoliday(h.id, { ...h, noSeRespeta: !h.noSeRespeta });
+  };
+
+  const renderTable = (holidayList) => (
     <table className="w-full">
       <thead className="bg-gray-100">
         <tr>
-          <th className="px-4 py-3 text-left">Emoji</th>
-          <th className="px-4 py-3 text-left">Tipo</th>
-          <th className="px-4 py-3 text-left">Fecha</th>
-          <th className="px-4 py-3 text-left">Nombre</th>
-          {showActions && <th className="px-4 py-3 text-left">Acciones</th>}
+          <th className="px-3 py-3 text-left w-12"></th>
+          <th className="px-3 py-3 text-left">Tipo</th>
+          <th className="px-3 py-3 text-left">Fecha</th>
+          <th className="px-3 py-3 text-left">Nombre</th>
+          <th className="px-3 py-3 text-center">Se trabaja</th>
+          <th className="px-3 py-3 text-left">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {holidayList.map(h => (
-          <tr key={h.id} className="border-b">
-            <td className="px-4 py-3 text-xl">{getHolidayEmoji(h)}</td>
-            <td className="px-4 py-3 text-sm text-gray-600">{getHolidayTypeName(h)}</td>
-            <td className="px-4 py-3">{h.date}</td>
-            <td className="px-4 py-3">{h.name}</td>
-            {showActions && (
-              <td className="px-4 py-3 flex gap-2">
-                <button onClick={() => startEdit(h)} className="text-blue-600"><Eye className="w-5 h-5" /></button>
-                <button onClick={() => deleteHoliday(h.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button>
-              </td>
-            )}
+          <tr key={h.id || h.date} className={`border-b ${h.noSeRespeta ? 'bg-red-50' : ''}`}>
+            <td className="px-3 py-3 text-xl">{getHolidayEmoji(h)}</td>
+            <td className={`px-3 py-3 text-sm font-medium ${getHolidayTypeColor(h)}`}>{getHolidayTypeName(h)}</td>
+            <td className="px-3 py-3">{h.date}</td>
+            <td className="px-3 py-3">{h.name}</td>
+            <td className="px-3 py-3 text-center">
+              <button
+                onClick={() => toggleNoSeRespeta(h)}
+                className={`px-2 py-1 rounded text-xs font-medium ${h.noSeRespeta ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+              >
+                {h.noSeRespeta ? '⚠️ Sí' : '✓ No'}
+              </button>
+            </td>
+            <td className="px-3 py-3 flex gap-2">
+              <button onClick={() => startEdit(h)} className="text-blue-600"><Edit2 className="w-4 h-4" /></button>
+              <button onClick={() => deleteHoliday(h.id)} className="text-red-600"><Trash2 className="w-4 h-4" /></button>
+            </td>
           </tr>
         ))}
         {holidayList.length === 0 && (
-          <tr><td colSpan={showActions ? 5 : 4} className="px-4 py-8 text-center text-gray-500">No hay días</td></tr>
+          <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No hay festivos para este año</td></tr>
         )}
       </tbody>
     </table>
@@ -1494,41 +1602,80 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gestión de Días Especiales</h2>
-        <button onClick={() => { setEditingHoliday(null); setFormData({ date: '', name: '', holidayType: 'closure', emoji: '🏢' }); setShowForm(true); }} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nuevo</span></button>
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h2 className="text-2xl font-bold">Gestión de Festivos</h2>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-3 py-2 border rounded-lg bg-white font-medium"
+          >
+            {availableYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <button onClick={() => { setEditingHoliday(null); setFormData({ date: '', name: '', holidayType: 'closure', emoji: '🏢', noSeRespeta: false }); setShowForm(true); }} className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg"><Plus className="w-5 h-5" /><span>Nuevo</span></button>
+        </div>
       </div>
+
+      {/* Leyenda */}
+      <div className="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg">
+        <span className="flex items-center gap-1"><span className="text-lg">🇪🇸</span> <span className="text-red-600 font-medium">Nacional</span></span>
+        <span className="flex items-center gap-1"><span className="text-lg">🏴</span> <span className="text-yellow-600 font-medium">Autonómico</span></span>
+        <span className="flex items-center gap-1"><span className="text-lg">📍</span> <span className="text-blue-600 font-medium">Local</span></span>
+        <span className="flex items-center gap-1"><span className="text-lg">🏢</span> <span className="text-purple-600 font-medium">Cierre</span></span>
+        <span className="flex items-center gap-1"><span className="text-lg">🔄</span> <span className="text-orange-600 font-medium">Turno</span></span>
+      </div>
+
       {showForm && (
         <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-          <h3 className="text-lg font-semibold">{editingHoliday ? 'Editar' : 'Nuevo'} Día Especial</h3>
+          <h3 className="text-lg font-semibold">{editingHoliday ? 'Editar' : 'Nuevo'} Festivo</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="px-3 py-2 border rounded" />
             <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="px-3 py-2 border rounded" placeholder="Nombre" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Tipo de día</label>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            <label className="block text-sm font-medium mb-2">Tipo de festivo</label>
+            <div className="flex flex-wrap gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" value="local" checked={formData.holidayType === 'local'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '📅' })} />
-                <span className="text-red-600">Festivo local</span>
+                <input type="radio" value="nacional" checked={formData.holidayType === 'nacional'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '🇪🇸' })} />
+                <span className="text-red-600">🇪🇸 Nacional</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="autonomico" checked={formData.holidayType === 'autonomico'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '🏴' })} />
+                <span className="text-yellow-600">🏴 Autonómico</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="local" checked={formData.holidayType === 'local'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '📍' })} />
+                <span className="text-blue-600">📍 Local</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="closure" checked={formData.holidayType === 'closure'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '🏢' })} />
-                <span className="text-purple-600">Día de cierre</span>
+                <span className="text-purple-600">🏢 Día de cierre</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="turno" checked={formData.holidayType === 'turno'} onChange={(e) => setFormData({ ...formData, holidayType: e.target.value, emoji: '🔄' })} />
-                <span className="text-yellow-600">Turno</span>
+                <span className="text-orange-600">🔄 Turno</span>
               </label>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Emoji</label>
+            <label className="block text-sm font-medium mb-2">Emoji personalizado</label>
             <div className="flex flex-wrap gap-2">
               {emojiOptions.map(e => (
                 <button key={e} type="button" onClick={() => setFormData({ ...formData, emoji: e })} className={`text-2xl p-2 rounded border-2 ${formData.emoji === e ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-gray-400'}`}>{e}</button>
               ))}
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="noSeRespeta"
+              checked={formData.noSeRespeta}
+              onChange={(e) => setFormData({ ...formData, noSeRespeta: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <label htmlFor="noSeRespeta" className="text-sm">Se trabajará este día (no se respeta el festivo)</label>
           </div>
           <div className="flex space-x-2">
             <button onClick={handleSubmit} className="bg-indigo-600 text-white px-4 py-2 rounded">{editingHoliday ? 'Guardar' : 'Añadir'}</button>
@@ -1537,24 +1684,25 @@ const HolidaysManagement = ({ holidays, addHoliday, deleteHoliday, updateHoliday
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex space-x-2 border-b">
-        <button
-          onClick={() => setActiveTab('current')}
-          className={`px-4 py-2 font-medium ${activeTab === 'current' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Próximos ({currentHolidays.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('past')}
-          className={`px-4 py-2 font-medium ${activeTab === 'past' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Pasados ({pastHolidays.length})
-        </button>
+      {/* Resumen del año */}
+      <div className="bg-white border rounded-lg p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-semibold text-lg">Festivos {selectedYear}</span>
+          <span className="text-sm text-gray-500">{yearHolidays.length} días</span>
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <span className="text-red-600">🇪🇸 Nacionales: {yearHolidays.filter(h => h.holidayType === 'nacional').length}</span>
+          <span className="text-yellow-600">🏴 Autonómicos: {yearHolidays.filter(h => h.holidayType === 'autonomico').length}</span>
+          <span className="text-blue-600">📍 Locales: {yearHolidays.filter(h => h.holidayType === 'local').length}</span>
+          <span className="text-purple-600">🏢 Cierres: {yearHolidays.filter(h => h.holidayType === 'closure').length}</span>
+          <span className="text-orange-600">🔄 Turnos: {yearHolidays.filter(h => h.holidayType === 'turno').length}</span>
+          {yearHolidays.filter(h => h.noSeRespeta).length > 0 && (
+            <span className="text-red-700 font-medium">⚠️ Se trabajan: {yearHolidays.filter(h => h.noSeRespeta).length}</span>
+          )}
+        </div>
       </div>
 
-      {activeTab === 'current' && renderTable(currentHolidays, true)}
-      {activeTab === 'past' && renderTable(pastHolidays, false)}
+      {renderTable(yearHolidays)}
     </div>
   );
 };
@@ -4830,6 +4978,580 @@ const TimeclockAdminView = ({ timeclockRecords, users, timeclockSettings, saveTi
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+// === ANÁLISIS DE DÍAS TRABAJADOS POR MES/EMPLEADO ===
+const WorkdayAnalysisView = ({ users, timeclockRecords, requests, holidays, isWeekend }) => {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const availableYears = [2022, 2023, 2024, 2025, 2026, 2027, 2028];
+  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  // Referencia teórica
+  const REFERENCIA_TEORICA = { code: 'REF_TEORICA', name: '📊 Referencia', lastName: 'Teórica' };
+
+  // Calcular días laborables en un mes (L-V sin festivos que se respetan)
+  const getWorkingDaysInMonth = (year, month) => {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let count = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        // Es día laborable (L-V), verificar si es festivo respetado
+        const holiday = holidays.find(h => h.date === dateStr && h.isLocal && !h.noSeRespeta);
+        if (!holiday) count++;
+      }
+    }
+    return count;
+  };
+
+  // Calcular festivos en un mes (que se respetan, no fines de semana)
+  const getHolidaysInMonth = (year, month) => {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+    return holidays.filter(h => {
+      if (h.date < startDate || h.date > endDate) return false;
+      if (h.noSeRespeta) return false;
+      const date = new Date(h.date);
+      const dayOfWeek = date.getDay();
+      return dayOfWeek !== 0 && dayOfWeek !== 6; // Solo contar si cae en día laborable
+    });
+  };
+
+  // Calcular días trabajados por usuario en un mes
+  const getWorkedDaysInMonth = (userCode, year, month) => {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+    const records = timeclockRecords.filter(r =>
+      r.userCode === userCode && r.date >= startDate && r.date <= endDate
+    );
+    return new Set(records.map(r => r.date)).size;
+  };
+
+  // Obtener fechas de vacaciones aprobadas en un mes
+  const getVacationDaysInMonth = (userCode, year, month) => {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+    const vacationRequests = requests.filter(r =>
+      r.userCode === userCode && r.status === 'approved' && r.type === 'vacation'
+    );
+
+    let count = 0;
+    vacationRequests.forEach(req => {
+      if (req.isRange) {
+        let cur = new Date(req.startDate);
+        const end = new Date(req.endDate);
+        while (cur <= end) {
+          const dateStr = cur.toISOString().split('T')[0];
+          if (dateStr >= startDate && dateStr <= endDate && !isWeekend(dateStr)) {
+            count++;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else if (req.dates) {
+        req.dates.forEach(d => {
+          if (d >= startDate && d <= endDate && !isWeekend(d)) count++;
+        });
+      }
+    });
+    return count;
+  };
+
+  // Obtener días especiales (tipo 'other' = enfermedad/ausencia justificada)
+  const getSpecialDaysInMonth = (userCode, year, month) => {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+    const specialRequests = requests.filter(r =>
+      r.userCode === userCode && r.status === 'approved' && r.type === 'other'
+    );
+
+    let count = 0;
+    specialRequests.forEach(req => {
+      if (req.isRange) {
+        let cur = new Date(req.startDate);
+        const end = new Date(req.endDate);
+        while (cur <= end) {
+          const dateStr = cur.toISOString().split('T')[0];
+          if (dateStr >= startDate && dateStr <= endDate && !isWeekend(dateStr)) count++;
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else if (req.dates) {
+        req.dates.forEach(d => {
+          if (d >= startDate && d <= endDate && !isWeekend(d)) count++;
+        });
+      }
+    });
+    return count;
+  };
+
+  // Calcular datos por usuario y mes
+  const calculateUserMonthData = (userCode, year, month) => {
+    const workingDays = getWorkingDaysInMonth(year, month);
+    const holidaysInMonth = getHolidaysInMonth(year, month);
+    const workedDays = userCode === 'REF_TEORICA' ? workingDays : getWorkedDaysInMonth(userCode, year, month);
+    const vacationDays = userCode === 'REF_TEORICA' ? 0 : getVacationDaysInMonth(userCode, year, month);
+    const specialDays = userCode === 'REF_TEORICA' ? 0 : getSpecialDaysInMonth(userCode, year, month);
+    const holidayCount = holidaysInMonth.length;
+
+    // Total explicado = trabajados + vacaciones + especiales + festivos
+    const totalExplicado = workedDays + vacationDays + specialDays + holidayCount;
+
+    // Días laborables del calendario (sin festivos)
+    const calendarWorkDays = workingDays;
+
+    // Descuadre = días laborables - total explicado
+    const descuadre = userCode === 'REF_TEORICA' ? 0 : calendarWorkDays - totalExplicado;
+
+    return {
+      workingDays: calendarWorkDays,
+      holidayCount,
+      workedDays,
+      vacationDays,
+      specialDays,
+      totalExplicado,
+      descuadre: descuadre > 0 ? descuadre : 0
+    };
+  };
+
+  const activeUsers = users.filter(u => u.isActive !== false);
+  const allUsers = [REFERENCIA_TEORICA, ...activeUsers];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h2 className="text-2xl font-bold">📊 Análisis de Días Trabajados</h2>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          className="px-3 py-2 border rounded-lg bg-white font-medium"
+        >
+          {availableYears.map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Leyenda */}
+      <div className="flex flex-wrap gap-4 text-xs bg-gray-50 p-3 rounded-lg">
+        <span className="flex items-center gap-1">📅 <strong>Lab.</strong> = Días laborables</span>
+        <span className="flex items-center gap-1">🎉 <strong>Fest.</strong> = Festivos</span>
+        <span className="flex items-center gap-1">💼 <strong>Trab.</strong> = Días trabajados</span>
+        <span className="flex items-center gap-1">🏖️ <strong>Vac.</strong> = Vacaciones</span>
+        <span className="flex items-center gap-1">⚠️ <strong>Esp.</strong> = Días especiales</span>
+        <span className="flex items-center gap-1 text-red-600">❌ <strong>Desc.</strong> = Descuadre</span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border px-2 py-2 text-left sticky left-0 bg-gray-100 z-10" style={{ minWidth: '150px' }}>Empleado</th>
+              {months.map((m, i) => (
+                <th key={i} colSpan={7} className="border px-1 py-2 text-center bg-indigo-50">{m}</th>
+              ))}
+              <th colSpan={7} className="border px-1 py-2 text-center bg-green-100 font-bold">TOTAL</th>
+            </tr>
+            <tr className="bg-gray-50 text-[10px]">
+              <th className="border px-1 py-1 sticky left-0 bg-gray-50 z-10"></th>
+              {[...months, 'TOTAL'].map((_, mi) => (
+                <React.Fragment key={mi}>
+                  <th className="border px-1 py-1 text-center" title="Días laborables">📅</th>
+                  <th className="border px-1 py-1 text-center" title="Festivos">🎉</th>
+                  <th className="border px-1 py-1 text-center" title="Trabajados">💼</th>
+                  <th className="border px-1 py-1 text-center" title="Vacaciones">🏖️</th>
+                  <th className="border px-1 py-1 text-center" title="Especiales">⚠️</th>
+                  <th className="border px-1 py-1 text-center bg-blue-50" title="Total explicado">Σ</th>
+                  <th className="border px-1 py-1 text-center bg-red-50" title="Descuadre">❌</th>
+                </React.Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {allUsers.map((user, idx) => {
+              const isRef = user.code === 'REF_TEORICA';
+              const yearTotals = { workingDays: 0, holidayCount: 0, workedDays: 0, vacationDays: 0, specialDays: 0, totalExplicado: 0, descuadre: 0 };
+
+              return (
+                <tr key={user.code} className={`${isRef ? 'bg-yellow-50 font-medium' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                  <td className={`border px-2 py-1 sticky left-0 z-10 ${isRef ? 'bg-yellow-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                    {user.name} {user.lastName}
+                  </td>
+                  {months.map((_, monthIndex) => {
+                    const data = calculateUserMonthData(user.code, selectedYear, monthIndex);
+                    yearTotals.workingDays += data.workingDays;
+                    yearTotals.holidayCount += data.holidayCount;
+                    yearTotals.workedDays += data.workedDays;
+                    yearTotals.vacationDays += data.vacationDays;
+                    yearTotals.specialDays += data.specialDays;
+                    yearTotals.totalExplicado += data.totalExplicado;
+                    yearTotals.descuadre += data.descuadre;
+
+                    return (
+                      <React.Fragment key={monthIndex}>
+                        <td className="border px-1 py-1 text-center text-gray-600">{data.workingDays}</td>
+                        <td className="border px-1 py-1 text-center text-purple-600">{data.holidayCount || '-'}</td>
+                        <td className="border px-1 py-1 text-center text-green-600 font-medium">{data.workedDays || '-'}</td>
+                        <td className="border px-1 py-1 text-center text-blue-600">{data.vacationDays || '-'}</td>
+                        <td className="border px-1 py-1 text-center text-orange-600">{data.specialDays || '-'}</td>
+                        <td className="border px-1 py-1 text-center bg-blue-50 font-medium">{data.totalExplicado}</td>
+                        <td className={`border px-1 py-1 text-center ${data.descuadre > 0 ? 'bg-red-100 text-red-700 font-bold' : 'text-gray-400'}`}>
+                          {data.descuadre > 0 ? data.descuadre : '-'}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
+                  {/* Totales anuales */}
+                  <td className="border px-1 py-1 text-center bg-green-50 font-bold">{yearTotals.workingDays}</td>
+                  <td className="border px-1 py-1 text-center bg-green-50 text-purple-600 font-bold">{yearTotals.holidayCount}</td>
+                  <td className="border px-1 py-1 text-center bg-green-50 text-green-600 font-bold">{yearTotals.workedDays}</td>
+                  <td className="border px-1 py-1 text-center bg-green-50 text-blue-600 font-bold">{yearTotals.vacationDays}</td>
+                  <td className="border px-1 py-1 text-center bg-green-50 text-orange-600 font-bold">{yearTotals.specialDays}</td>
+                  <td className="border px-1 py-1 text-center bg-blue-100 font-bold">{yearTotals.totalExplicado}</td>
+                  <td className={`border px-1 py-1 text-center font-bold ${yearTotals.descuadre > 0 ? 'bg-red-200 text-red-700' : 'bg-green-50 text-gray-400'}`}>
+                    {yearTotals.descuadre > 0 ? yearTotals.descuadre : '-'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// === CALENDARIO LABORAL VISUAL ===
+const WorkCalendarView = ({ holidays, addHoliday, updateHoliday, deleteHoliday, showNotification, isAdmin }) => {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [editingDay, setEditingDay] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newHoliday, setNewHoliday] = useState({ date: '', name: '', holidayType: 'closure', emoji: '🏢' });
+  const availableYears = [2022, 2023, 2024, 2025, 2026, 2027, 2028];
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+  // Obtener festivos del año
+  const yearHolidays = holidays.filter(h => h.date && h.date.startsWith(String(selectedYear)));
+
+  // Obtener info de un día
+  const getDayInfo = (dateStr) => {
+    return yearHolidays.find(h => h.date === dateStr);
+  };
+
+  // Colores por tipo
+  const getTypeColor = (holidayType, noSeRespeta) => {
+    if (noSeRespeta) return 'bg-red-200 border-red-400';
+    switch (holidayType) {
+      case 'nacional': return 'bg-red-100 border-red-300';
+      case 'autonomico': return 'bg-yellow-100 border-yellow-300';
+      case 'local': return 'bg-blue-100 border-blue-300';
+      case 'closure': return 'bg-purple-100 border-purple-300';
+      case 'turno': return 'bg-orange-100 border-orange-300';
+      default: return 'bg-gray-100 border-gray-300';
+    }
+  };
+
+  const getTypeEmoji = (holidayType) => {
+    switch (holidayType) {
+      case 'nacional': return '🇪🇸';
+      case 'autonomico': return '🏴';
+      case 'local': return '📍';
+      case 'closure': return '🏢';
+      case 'turno': return '🔄';
+      default: return '📅';
+    }
+  };
+
+  // Generar calendario de un mes
+  const renderMonth = (monthIndex) => {
+    const firstDay = new Date(selectedYear, monthIndex, 1);
+    const lastDay = new Date(selectedYear, monthIndex + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay(); // 0=Dom, 1=Lun...
+
+    // Ajustar para empezar en Lunes (0=Lun, 6=Dom)
+    const adjustedStartDay = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    const weeks = [];
+    let currentWeek = [];
+
+    // Rellenar días vacíos al inicio
+    for (let i = 0; i < adjustedStartDay; i++) {
+      currentWeek.push(null);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(selectedYear, monthIndex, day);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayOfWeek = date.getDay();
+      const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+      const holiday = getDayInfo(dateStr);
+
+      currentWeek.push({
+        day,
+        dateStr,
+        isWeekend: isWeekendDay,
+        holiday
+      });
+
+      // Si es domingo (ajustado = 6) o último día del mes
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    // Rellenar última semana si es necesario
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(null);
+      }
+      weeks.push(currentWeek);
+    }
+
+    // Asegurar 6 semanas para uniformidad
+    while (weeks.length < 6) {
+      weeks.push([null, null, null, null, null, null, null]);
+    }
+
+    return (
+      <div key={monthIndex} className="border rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="bg-indigo-600 text-white text-center py-1 font-semibold text-sm">
+          {months[monthIndex]}
+        </div>
+        <div className="p-1">
+          {/* Cabecera días de la semana */}
+          <div className="grid grid-cols-7 gap-px mb-1">
+            {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
+              <div key={i} className={`text-center text-[10px] font-medium ${i >= 5 ? 'text-gray-400' : 'text-gray-600'}`}>
+                {d}
+              </div>
+            ))}
+          </div>
+          {/* Semanas */}
+          {weeks.slice(0, 6).map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 gap-px">
+              {week.map((dayInfo, di) => {
+                if (!dayInfo) {
+                  return <div key={di} className="h-6 bg-gray-50"></div>;
+                }
+
+                const { day, dateStr, isWeekend, holiday } = dayInfo;
+                let bgColor = isWeekend ? 'bg-gray-200' : 'bg-white';
+                let textColor = isWeekend ? 'text-gray-500' : 'text-gray-800';
+                let borderStyle = '';
+                let emoji = '';
+                let title = '';
+
+                if (holiday) {
+                  bgColor = getTypeColor(holiday.holidayType, holiday.noSeRespeta);
+                  textColor = holiday.noSeRespeta ? 'text-red-700 line-through' : 'text-gray-800';
+                  borderStyle = 'border';
+                  emoji = holiday.noSeRespeta ? '⚠️' : getTypeEmoji(holiday.holidayType);
+                  title = `${holiday.name}${holiday.noSeRespeta ? ' (Se trabaja)' : ''}`;
+                }
+
+                const isEditing = editingDay === dateStr;
+
+                return (
+                  <div
+                    key={di}
+                    className={`h-6 flex items-center justify-center text-[10px] font-medium rounded-sm cursor-pointer transition-all ${bgColor} ${textColor} ${borderStyle} ${isEditing ? 'ring-2 ring-indigo-500' : ''} ${isAdmin ? 'hover:ring-1 hover:ring-indigo-300' : ''}`}
+                    title={title || dateStr}
+                    onClick={() => isAdmin && setEditingDay(isEditing ? null : dateStr)}
+                  >
+                    {emoji && <span className="text-[8px] mr-0.5">{emoji}</span>}
+                    {day}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const handleAddHoliday = async () => {
+    if (!newHoliday.date || !newHoliday.name) {
+      showNotification('error', 'Completa todos los campos');
+      return;
+    }
+    await addHoliday(newHoliday);
+    setNewHoliday({ date: '', name: '', holidayType: 'closure', emoji: '🏢' });
+    setShowAddForm(false);
+  };
+
+  const handleDeleteHoliday = async (holiday) => {
+    if (holiday.id) {
+      await deleteHoliday(holiday.id);
+      setEditingDay(null);
+    }
+  };
+
+  const handleToggleNoSeRespeta = async (holiday) => {
+    if (holiday.id) {
+      await updateHoliday(holiday.id, { ...holiday, noSeRespeta: !holiday.noSeRespeta });
+    }
+  };
+
+  const selectedDayHoliday = editingDay ? getDayInfo(editingDay) : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h2 className="text-2xl font-bold">📅 Calendario Laboral</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSelectedYear(y => Math.max(2022, y - 1))}
+            disabled={selectedYear <= 2022}
+            className="px-3 py-2 border rounded-lg disabled:opacity-50"
+          >
+            ◀
+          </button>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-3 py-2 border rounded-lg bg-white font-bold text-lg"
+          >
+            {availableYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setSelectedYear(y => Math.min(2028, y + 1))}
+            disabled={selectedYear >= 2028}
+            className="px-3 py-2 border rounded-lg disabled:opacity-50"
+          >
+            ▶
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white rounded-lg"
+            >
+              <Plus className="w-4 h-4" /> Añadir
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Leyenda */}
+      <div className="flex flex-wrap gap-3 text-xs bg-gray-50 p-3 rounded-lg">
+        <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-red-100 border border-red-300"></span> 🇪🇸 Nacional</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300"></span> 🏴 Autonómico</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-blue-100 border border-blue-300"></span> 📍 Local</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-purple-100 border border-purple-300"></span> 🏢 Cierre</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-orange-100 border border-orange-300"></span> 🔄 Turno</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-gray-200"></span> Fin de semana</span>
+        <span className="flex items-center gap-1 text-red-600"><span className="w-4 h-4 rounded bg-red-200 border border-red-400"></span> ⚠️ Se trabaja</span>
+      </div>
+
+      {/* Formulario para añadir */}
+      {showAddForm && isAdmin && (
+        <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold">Añadir nuevo festivo/cierre</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <input
+              type="date"
+              value={newHoliday.date}
+              onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
+              className="px-3 py-2 border rounded"
+            />
+            <input
+              type="text"
+              value={newHoliday.name}
+              onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
+              placeholder="Nombre"
+              className="px-3 py-2 border rounded"
+            />
+            <select
+              value={newHoliday.holidayType}
+              onChange={(e) => setNewHoliday({ ...newHoliday, holidayType: e.target.value, emoji: getTypeEmoji(e.target.value) })}
+              className="px-3 py-2 border rounded"
+            >
+              <option value="nacional">🇪🇸 Nacional</option>
+              <option value="autonomico">🏴 Autonómico</option>
+              <option value="local">📍 Local</option>
+              <option value="closure">🏢 Cierre</option>
+              <option value="turno">🔄 Turno</option>
+            </select>
+            <div className="flex gap-2">
+              <button onClick={handleAddHoliday} className="flex-1 bg-indigo-600 text-white px-3 py-2 rounded">Guardar</button>
+              <button onClick={() => setShowAddForm(false)} className="px-3 py-2 border rounded">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel de edición del día seleccionado */}
+      {editingDay && isAdmin && (
+        <div className="bg-indigo-50 p-4 rounded-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold">📅 {editingDay}</h3>
+              {selectedDayHoliday ? (
+                <div className="mt-2 space-y-2">
+                  <p><strong>{getTypeEmoji(selectedDayHoliday.holidayType)} {selectedDayHoliday.name}</strong></p>
+                  <p className="text-sm text-gray-600">Tipo: {selectedDayHoliday.holidayType}</p>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => handleToggleNoSeRespeta(selectedDayHoliday)}
+                      className={`px-3 py-1 rounded text-sm ${selectedDayHoliday.noSeRespeta ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                    >
+                      {selectedDayHoliday.noSeRespeta ? '✓ Marcar como festivo' : '⚠️ Marcar como trabajable'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteHoliday(selectedDayHoliday)}
+                      className="px-3 py-1 bg-red-600 text-white rounded text-sm"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <p className="text-gray-600">Día laborable normal</p>
+                  <button
+                    onClick={() => {
+                      setNewHoliday({ ...newHoliday, date: editingDay });
+                      setShowAddForm(true);
+                    }}
+                    className="mt-2 px-3 py-1 bg-indigo-600 text-white rounded text-sm"
+                  >
+                    + Añadir festivo/cierre
+                  </button>
+                </div>
+              )}
+            </div>
+            <button onClick={() => setEditingDay(null)} className="text-gray-500 hover:text-gray-700">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Resumen del año */}
+      <div className="bg-white border rounded-lg p-4">
+        <div className="flex flex-wrap gap-4 text-sm">
+          <span className="font-semibold">{selectedYear}:</span>
+          <span className="text-red-600">🇪🇸 Nacionales: {yearHolidays.filter(h => h.holidayType === 'nacional').length}</span>
+          <span className="text-yellow-600">🏴 Autonómicos: {yearHolidays.filter(h => h.holidayType === 'autonomico').length}</span>
+          <span className="text-blue-600">📍 Locales: {yearHolidays.filter(h => h.holidayType === 'local').length}</span>
+          <span className="text-purple-600">🏢 Cierres: {yearHolidays.filter(h => h.holidayType === 'closure').length}</span>
+          <span className="text-orange-600">🔄 Turnos: {yearHolidays.filter(h => h.holidayType === 'turno').length}</span>
+          {yearHolidays.filter(h => h.noSeRespeta).length > 0 && (
+            <span className="text-red-700 font-medium">⚠️ Se trabajan: {yearHolidays.filter(h => h.noSeRespeta).length}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Calendario 4x3 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {months.map((_, i) => renderMonth(i))}
+      </div>
     </div>
   );
 };
