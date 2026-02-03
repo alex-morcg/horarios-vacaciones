@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Users, FileText, Settings, LogOut, Plus, Check, X, Trash2, Eye, ChevronLeft, ChevronRight, Wifi, WifiOff, MessageSquare, Clock, Play, Pause, Coffee, UtensilsCrossed, Square, MapPin, Edit2, Save } from 'lucide-react';
 import { db } from './firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 
 const VacationManager = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -120,16 +120,7 @@ const VacationManager = () => {
       setFeedbacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Solo cargar fichajes de los últimos 6 meses para mejor rendimiento
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const minDate = sixMonthsAgo.toISOString().split('T')[0];
-
-    const timeclockQuery = query(
-      collection(db, 'vacation_timeclock'),
-      where('date', '>=', minDate)
-    );
-    const unsubTimeclock = onSnapshot(timeclockQuery, (snap) => {
+    const unsubTimeclock = onSnapshot(collection(db, 'vacation_timeclock'), (snap) => {
       setTimeclockRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
