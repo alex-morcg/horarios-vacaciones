@@ -3225,8 +3225,8 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
           <table className="border-collapse text-xs">
             <thead>
               {/* Month row */}
-              <tr className="bg-indigo-700 text-white">
-                <th className="p-2 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20 min-w-[140px]" rowSpan={3}>
+              <tr className="bg-indigo-700 text-white" style={{ height: '33px' }}>
+                <th className="p-1 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20 min-w-[140px]" rowSpan={3}>
                   Empleado
                 </th>
                 {monthSpans.map((span, idx) => (
@@ -3240,7 +3240,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                 ))}
               </tr>
               {/* Week numbers row */}
-              <tr className="bg-indigo-600 text-white">
+              <tr className="bg-indigo-600 text-white" style={{ height: '25px' }}>
                 {weeks.map((week) => (
                   <th
                     key={week.weekNum}
@@ -3254,7 +3254,7 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                 ))}
               </tr>
               {/* Sub-headers row */}
-              <tr className="bg-indigo-100 text-indigo-800">
+              <tr className="bg-indigo-100 text-indigo-800" style={{ height: '25px' }}>
                 {weeks.map((week) => (
                   <React.Fragment key={`sub-${week.weekNum}`}>
                     <th className="p-1 border text-center" style={{ minWidth: '35px' }}>T</th>
@@ -3301,8 +3301,8 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                 });
 
                 return (
-                  <tr key={user.code} className="hover:bg-gray-50">
-                    <td className="p-2 border font-medium sticky left-0 bg-white z-10 min-w-[140px]">
+                  <tr key={user.code} className="hover:bg-gray-50" style={{ height: '29px' }}>
+                    <td className="p-1 border font-medium sticky left-0 bg-white z-10 min-w-[140px]">
                       {user.name} {user.lastName}
                     </td>
                     {weekCells}
@@ -3317,17 +3317,17 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
         <div className="absolute top-0 right-0 bg-white border-l-2 border-indigo-300 shadow-lg" style={{ width: '150px' }}>
           <table className="border-collapse text-xs w-full">
             <thead>
-              <tr className="bg-indigo-800 text-white">
-                <th colSpan={3} className="p-2 border border-indigo-700 text-center" style={{ height: '37px' }}>
+              <tr className="bg-indigo-800 text-white" style={{ height: '33px' }}>
+                <th colSpan={3} className="p-1 border border-indigo-700 text-center">
                   Total Anual
                 </th>
               </tr>
-              <tr className="bg-indigo-600 text-white">
-                <th colSpan={3} className="p-1 border border-indigo-500 text-center" style={{ height: '29px' }}>
+              <tr className="bg-indigo-600 text-white" style={{ height: '25px' }}>
+                <th colSpan={3} className="p-1 border border-indigo-500 text-center">
                   {selectedYear}
                 </th>
               </tr>
-              <tr className="bg-indigo-200 text-indigo-800">
+              <tr className="bg-indigo-200 text-indigo-800" style={{ height: '25px' }}>
                 <th className="p-1 border text-center" style={{ width: '50px' }}>T</th>
                 <th className="p-1 border text-center" style={{ width: '50px' }}>D</th>
                 <th className="p-1 border text-center" style={{ width: '50px' }}>C</th>
@@ -3347,8 +3347,8 @@ const YearlyStatsTable = ({ timeclockRecords, users, calculateWorkedTime, onWeek
                 });
 
                 return (
-                  <tr key={user.code} className="bg-indigo-50">
-                    <td className="p-1 border text-center font-bold text-green-700" style={{ height: '33px' }}>
+                  <tr key={user.code} className="bg-indigo-50" style={{ height: '29px' }}>
+                    <td className="p-1 border text-center font-bold text-green-700">
                       {formatValue(yearWorkedMins)}
                     </td>
                     <td className="p-1 border text-center font-bold text-orange-600">
@@ -3472,15 +3472,15 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
           <table className="border-collapse text-xs">
             <thead>
               {/* Month headers */}
-              <tr className="bg-indigo-700 text-white">
-                <th className="p-2 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20 min-w-[140px]" rowSpan={2}>
+              <tr className="bg-indigo-700 text-white" style={{ height: '33px' }}>
+                <th className="p-1 border border-indigo-600 text-left sticky left-0 bg-indigo-700 z-20 min-w-[140px]" rowSpan={2}>
                   Empleado
                 </th>
                 {monthNamesShort.map((month, idx) => (
                   <th
                     key={idx}
                     colSpan={3}
-                    className="p-2 border border-indigo-600 text-center cursor-pointer hover:bg-indigo-600"
+                    className="p-1 border border-indigo-600 text-center cursor-pointer hover:bg-indigo-600"
                     onClick={() => onMonthClick && onMonthClick(idx, selectedYear)}
                     title={`Ver ${monthNames[idx]} ${selectedYear}`}
                   >
@@ -3489,7 +3489,7 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
                 ))}
               </tr>
               {/* Sub-headers row */}
-              <tr className="bg-indigo-100 text-indigo-800">
+              <tr className="bg-indigo-100 text-indigo-800" style={{ height: '25px' }}>
                 {monthNamesShort.map((_, idx) => (
                   <React.Fragment key={`sub-${idx}`}>
                     <th className="p-1 border text-center" style={{ minWidth: '40px' }}>T</th>
@@ -3529,8 +3529,8 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
                 });
 
                 return (
-                  <tr key={user.code} className="hover:bg-gray-50">
-                    <td className="p-2 border font-medium sticky left-0 bg-white z-10 min-w-[140px]">
+                  <tr key={user.code} className="hover:bg-gray-50" style={{ height: '29px' }}>
+                    <td className="p-1 border font-medium sticky left-0 bg-white z-10 min-w-[140px]">
                       {user.name} {user.lastName}
                     </td>
                     {monthCells}
@@ -3545,12 +3545,12 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
         <div className="absolute top-0 right-0 bg-white border-l-2 border-indigo-300 shadow-lg" style={{ width: '150px' }}>
           <table className="border-collapse text-xs w-full">
             <thead>
-              <tr className="bg-indigo-800 text-white">
-                <th colSpan={3} className="p-2 border border-indigo-700 text-center" style={{ height: '37px' }}>
+              <tr className="bg-indigo-800 text-white" style={{ height: '33px' }}>
+                <th colSpan={3} className="p-1 border border-indigo-700 text-center">
                   Total Anual
                 </th>
               </tr>
-              <tr className="bg-indigo-200 text-indigo-800">
+              <tr className="bg-indigo-200 text-indigo-800" style={{ height: '25px' }}>
                 <th className="p-1 border text-center" style={{ width: '50px' }}>T</th>
                 <th className="p-1 border text-center" style={{ width: '50px' }}>D</th>
                 <th className="p-1 border text-center" style={{ width: '50px' }}>C</th>
@@ -3570,8 +3570,8 @@ const YearlyByMonthsTable = ({ timeclockRecords, users, calculateWorkedTime, onM
                 });
 
                 return (
-                  <tr key={user.code} className="bg-indigo-50">
-                    <td className="p-1 border text-center font-bold text-green-700" style={{ height: '33px' }}>
+                  <tr key={user.code} className="bg-indigo-50" style={{ height: '29px' }}>
+                    <td className="p-1 border text-center font-bold text-green-700">
                       {formatValue(yearWorkedMins)}
                     </td>
                     <td className="p-1 border text-center font-bold text-orange-600">
