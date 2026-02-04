@@ -6242,8 +6242,14 @@ const TimeclockValidationView = ({ users, timeclockRecords, scheduleTypes, timec
       // Si tiene noSeRespeta = true, entonces SÍ se trabaja, no es festivo efectivo
       if (h.noSeRespeta) return false;
       // Tipos que cuentan como día no laborable: nacional, autonomico, local, closure
+      // También incluir festivos con isLocal=true (formato antiguo) o sin holidayType definido
       const nonWorkingTypes = ['nacional', 'autonomico', 'local', 'closure'];
-      return nonWorkingTypes.includes(h.holidayType);
+      // Si tiene holidayType, verificar que sea uno de los tipos no laborables
+      if (h.holidayType) {
+        return nonWorkingTypes.includes(h.holidayType);
+      }
+      // Si no tiene holidayType pero tiene isLocal=true, es festivo (formato antiguo)
+      return h.isLocal === true;
     });
   };
 
@@ -6254,7 +6260,13 @@ const TimeclockValidationView = ({ users, timeclockRecords, scheduleTypes, timec
 
   // Helper: Obtener info del festivo
   const getHolidayInfo = (dateStr) => {
-    return holidays.find(h => h.date === dateStr && !h.noSeRespeta && ['nacional', 'autonomico', 'local', 'closure'].includes(h.holidayType));
+    const h = holidays.find(h => h.date === dateStr && !h.noSeRespeta);
+    if (!h) return null;
+    // Verificar que sea un tipo no laborable
+    const nonWorkingTypes = ['nacional', 'autonomico', 'local', 'closure'];
+    if (h.holidayType && nonWorkingTypes.includes(h.holidayType)) return h;
+    if (!h.holidayType && h.isLocal) return h;
+    return null;
   };
 
   // Helper: Obtener validación existente
